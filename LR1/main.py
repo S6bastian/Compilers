@@ -4,6 +4,7 @@ with open("grammar.txt", "r") as f:
     text = f.read()
 
 grammar = Grammar(text)
+grammar.print_first()
 
 print(grammar)
 print("Terminales:", grammar.terminals)
