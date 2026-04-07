@@ -3,7 +3,8 @@ class Grammar:
         self.productions = {}                   # map<string, vector<vector<char>>>
         self.start_symbol = None                # string
         self.non_terminals = set()              # unordered_set<string>
-        self.terminals = set()                  # unordered_set<string>                      
+        self.terminals = set()                  # unordered_set<string>       
+        self.empty_symbol = "es"               
 
         self._parse(text)
         self._augment_grammar()
@@ -70,42 +71,45 @@ class Grammar:
     # First
     def _init_first(self):
         self.first = {}
+        
         for t in self.terminals:
             self.first[t] = {t}
+        
         for nt in self.non_terminals:
             self.first[nt] = set()
-        self.first["ε"] = {"ε"}
+        
+        self.first[self.empty_symbol] = {self.empty_symbol}
+        self.first["$"] = {"$"}
 
     def first_of_sequence(self, symbols):
         result = set()
 
         for symbol in symbols:
-            result |= (self.first[symbol] - {"ε"})
-            if "ε" not in self.first[symbol]:
+            result |= self.first[symbol]
+            
+            # si este símbolo no puede desaparecer, paramos aquí
+            if self.empty_symbol not in self.first[symbol]:
                 return result
 
-        result.add("ε")
+        # todos los símbolos pueden desaparecer
         return result
 
     def _compute_first(self):
         self._init_first()
+        
         changed = True
         while changed:
             changed = False
 
             for head, bodies in self.productions.items():
                 for body in bodies:
-                    before = len(self.first[head])
-
-                    first_body = self.first_of_sequence(body)
-
-                    self.first[head] |= (first_body - {"ε"})
-
-                    if "ε" in first_body:
-                        self.first[head].add("ε")
-
-                    if len(self.first[head]) != before:
+                    new_symbols = self.first_of_sequence(body)
+                    
+                    if not new_symbols.issubset(self.first[head]):
+                        self.first[head] |= new_symbols
                         changed = True
+
+
 
     def print_first(self):
         print("FIRST sets **********************************************")
