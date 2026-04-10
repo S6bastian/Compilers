@@ -4,7 +4,7 @@ class LR1Items:
     def __init__(self, grammar: Grammar):
         self.grammar = grammar
         self.states = []   # lista de conjuntos de items
-        self.transitions = {}  # (estado_idx, symbol) -> estado_idx
+        self.transitions = {}  # (estado_n, symbol) -> estado_n
 
         self._build()
 
