@@ -15,6 +15,7 @@ void Grammar::loadFromFile(const string& filename) {
 
     string line;
     bool firstLine = true;
+    int startSymbolCount = 0;
     
     while (getline(file, line)) {
         if (line.empty()) continue;
@@ -30,13 +31,22 @@ void Grammar::loadFromFile(const string& filename) {
         string symbol;
         while (ss >> symbol) body.push_back(symbol);
 
+        productions.push_back({head, body});
+        nonTerminals.insert(head);
+        
         if (firstLine){
             startSymbol = head;
             firstLine = false;     
         }
 
-        productions.push_back({head, body});
+        if (head == startSymbol) startSymbolCount++;
+    }
+
+    if(startSymbolCount > 1){
+        string head = startSymbol + "+";
+        productions.push_back({head,{startSymbol}});
         nonTerminals.insert(head);
+        startSymbol = head;
     }
 
     stable_sort(productions.begin(), productions.end(), [this](const auto& a, const auto& b){
