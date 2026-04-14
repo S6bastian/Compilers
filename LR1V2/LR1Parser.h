@@ -4,10 +4,11 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
 
-// Representa un ítem LR(1): [A -> alpha . beta, lookahead]
+
 struct LR1Item {
     string head;
     vector<string> body;
@@ -27,17 +28,14 @@ struct LR1Item {
     }
 };
 
-// Un Estado es un conjunto de ítems
+
 typedef set<LR1Item> State;
 
 class LR1Parser {
 public:
     LR1Parser(Grammar *g);
-    
-    // Genera la Colección Canónica de Estados (CC)
+
     void buildCanonicalCollection();
-    
-    // Para verificar los estados generados
     void printStates() const;
 
 private:
