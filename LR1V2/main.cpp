@@ -1,4 +1,5 @@
 #include "Grammar.h"
+#include "LR1Parser.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -6,25 +7,15 @@
 using namespace std;
 
 int main(){
-    Grammar myGrammar;
     string filename = "grammar.txt";
+    Grammar myGrammar(filename);
+    //myGrammar.printDebug();
+    LR1Parser lr1(&myGrammar);
 
-    // GRAMMAR TEST ----------------------------------------------------------------------------
+    lr1.printStates();
 
-    cout << "--- Cargando gramatica desde: " << filename << " ---" << "\n";
-    myGrammar.loadFromFile(filename);
 
-    cout << "Simbolo inicial: " << myGrammar.getStartSymbol() << "\n";
-
-    for (const auto& prod : myGrammar.getProductions()) {
-        cout << prod.first << " -> ";
-        
-        for (size_t i = 0; i < prod.second.size(); ++i) {
-            cout << "[" << prod.second[i] << "]"; 
-            if (i < prod.second.size() - 1) cout << " ";
-        }
-        cout << endl;
-    }
-
+    
+    
     return 0;
 }
