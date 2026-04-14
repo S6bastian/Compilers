@@ -8,6 +8,18 @@
 
 using namespace std;
 
+enum ActionType { SHIFT, REDUCE, ACCEPT, ERROR };
+
+struct TableEntry {
+    ActionType type = ERROR;
+    int id = -1;
+};
+
+struct Node {
+    string value;
+    vector<Node*> children;
+    Node(string v) : value(v) {}
+};
 
 struct LR1Item {
     string head;
@@ -28,29 +40,25 @@ struct LR1Item {
     }
 };
 
-
 typedef set<LR1Item> State;
 
 class LR1Parser {
 public:
     LR1Parser(Grammar *g);
-
     void buildCanonicalCollection();
     void printStates() const;
+    void buildTable();
+    void printTable() const;
+    void parse(const vector<string>& input);
+    void printTree(Node* node, int depth) const;
 
 private:
     Grammar *grammar;
-    
-    // Esta es tu Colección Canónica (Lista de Estados)
     vector<State> states; 
-    
-    // Transiciones entre estados: [ID_Origen][Simbolo] -> ID_Destino
     map<int, map<string, int>> transitions;
+    map<int, map<string, TableEntry>> parsingTable;
 
-    // Funciones núcleo para la lógica de estados
     State closure(State I);
     State goTo(const State& I, const string& X);
-    
-    // Calcula el FIRST de lo que queda después de un No Terminal + el lookahead actual
     set<string> computeFirstChain(vector<string> beta, string lookahead);
 };

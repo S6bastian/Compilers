@@ -12,8 +12,12 @@ int main(){
     //myGrammar.printDebug();
     LR1Parser lr1(&myGrammar);
 
-    lr1.printStates();
+    //lr1.printStates();
+    lr1.printTable();
 
+    vector<string> entrada = {"(", "a", ")"}; 
+    
+    lr1.parse(entrada);
 
     
     
