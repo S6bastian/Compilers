@@ -5,14 +5,14 @@ LR1Parser::LR1Parser(Grammar *g) {
     buildCanonicalCollection();
 }
 
-void LR1Parser::buildCanonicalCollection() {
+void LR1Parser::buildStates() {
     states.clear();
     
     LR1Item startItem;
     startItem.head = grammar->getStartSymbol(); 
     startItem.body = grammar->getProductions()[0].second; 
     startItem.dot = 0;
-    startItem.lookahead = "$";
+    startItem.lookahead = {"$"};
 
     states.push_back(closure({startItem}));
 
@@ -47,6 +47,50 @@ void LR1Parser::buildCanonicalCollection() {
         }
     }
 }
+
+set<string> LR1Parser::computeLookahead(LR1Item item){
+    if(item.dot + 1 == item.body.size()) return item.lookahead;
+
+    //string dotSymbol = item.body[item.dot];
+    string nextSymbol = item.body[item.dot + 1];
+    set<string> lookaheads;
+
+    if(grammar->isNonTerminal(nextSymbol)){
+        set<string> candidates = grammar->getFirsts(nextSymbol);
+        for(const string& candidate : candidates){
+            if(candidate == grammar->getEmptySymbol()){
+                item.dot++;
+                lookaheads.merge(computeLookahead(item));
+            }
+            lookaheads.insert(candidate);
+        }
+        return lookaheads;
+    }
+    else
+        return {nextSymbol};
+
+}
+
+vector<LR1Item> LR1Parser::closureXd(LR1Item kernel) {
+    queue<pair<string,vector<string>>> next;    // new head and vector of lookahead
+    vector<LR1Item> state;
+    //vector<pair<string,vector<string>>> state;
+
+    
+
+    if(grammar->isTerminal(kernel.body[0])) return {kernel};      // REVISAR!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    if(kernel.dot < kernel.body.size()){
+        for(size_t cDot = kernel.dot; cDot < kernel.body.size(); cDot++){
+
+        }
+    }
+    next.push({kernel.body[kernel.dot],})
+    while(!next.empty()){
+
+    }
+}
+
 
 State LR1Parser::closure(State I) {
     State J = I;

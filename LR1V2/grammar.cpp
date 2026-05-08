@@ -63,12 +63,8 @@ void Grammar::loadFromFile(const string& filename) {
     }
 
     stable_sort(productions.begin(), productions.end(), [this](const auto& a, const auto& b){
-        // Si 'a' es el símbolo inicial y 'b' no, 'a' va primero
         if (a.first == startSymbol && b.first != startSymbol) return true;
-        // Si 'b' es el símbolo inicial y 'a' no, 'b' va primero
         if (b.first == startSymbol && a.first != startSymbol) return false;
-        
-        // Para los demás, ordenamos alfabéticamente
         return a.first < b.first;
     });
 }
@@ -152,6 +148,7 @@ void Grammar::printDebug() const {
 //********************************************************************************************************************
 
 void Grammar::extractTerminals(){ 
+    //terminals.insert("$");
     for(auto &production : productions){
         for(auto &symbol : production.second){
             if(nonTerminals.find(symbol) == nonTerminals.end() && symbol != emptySymbol){
