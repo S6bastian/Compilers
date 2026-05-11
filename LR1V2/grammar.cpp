@@ -185,9 +185,10 @@ void Grammar::extractFirsts(){
 
                     if (!hasEpsilon) break;
 
-                    if (&symbol == &body.back() && hasEpsilon) {
-                        firsts[head].insert(emptySymbol);
-                    }
+                    firsts[head].insert(emptySymbol);
+                    // if (&symbol == &body.back() && hasEpsilon) {
+                    //     firsts[head].insert(emptySymbol);
+                    // }
                 }
             }
             

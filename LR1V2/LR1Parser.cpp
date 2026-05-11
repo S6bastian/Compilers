@@ -14,8 +14,21 @@ void LR1Parser::buildStates() {
     startItem.dot = 0;
     startItem.lookahead = {"$"};
 
-    states.push_back(closure({startItem}));
+    
 
+    states.push_back(closure({startItem}));
+    
+    State test = states[0];
+    cout << "PARSER TEST!!!!!!!!!!!!!!!!! \n";
+    for(LR1Item item : test){
+        cout << item.head << " -> "; 
+        for(auto body : item.body) cout << body << " ";
+        cout << ", { ";
+        for(auto l : item.lookahead) cout << l << " ";
+        cout << "}    dot = " << item.dot << "\n";
+    }
+
+    /*
     for (size_t i = 0; i < states.size(); ++i) {
         set<string> symbols;
         for (const auto& item : states[i]) {
@@ -46,6 +59,8 @@ void LR1Parser::buildStates() {
             }
         }
     }
+
+    */
 }
 
 set<string> LR1Parser::computeLookahead(LR1Item item){
@@ -61,7 +76,7 @@ set<string> LR1Parser::computeLookahead(LR1Item item){
                 item.dot++;
                 lookaheads.merge(computeLookahead(item));
             }
-            lookaheads.insert(candidate);
+            else lookaheads.insert(candidate);
         }
     }
     else
@@ -73,62 +88,58 @@ set<string> LR1Parser::computeLookahead(LR1Item item){
 
 vector<LR1Item> LR1Parser::closure(vector<LR1Item> kernels) {
     vector<LR1Item> state;
-    queue<LR1Item> pending;
+    deque<LR1Item> pending;
     
     for (const auto& item : kernels) {
-        pending.push(item);
+        pending.push_back(item);
     }
+    
+    auto findItemByKey = [](const vector<LR1Item>& items, const LR1Item& target) -> int {
+        for (size_t i = 0; i < items.size(); ++i) {
+            if (items[i].head == target.head && 
+                items[i].body == target.body && 
+                items[i].dot == target.dot) {
+                return i;
+            }
+        }
+        return -1;
+    };
     
     while (!pending.empty()) {
         LR1Item current = pending.front();
-        pending.pop();
+        pending.pop_front();
         
-        bool alreadyExists = false;
-        for (const auto& existing : state) {
-            if (existing.head == current.head && 
-                existing.body == current.body && 
-                existing.dot == current.dot) {
-                alreadyExists = true;
-                break;
-            }
-        }
+        int existingIndex = findItemByKey(state, current);
         
-        if (!alreadyExists) {
+        if (existingIndex == -1) {
             state.push_back(current);
-        }
-        
-        if (current.dot >= current.body.size()) {
-            continue;
-        }
-        
-        string nextSymbol = current.body[current.dot];
-        
-        if (grammar->isNonTerminal(nextSymbol)) {
-            for (const auto& prod : grammar->getProductions()) {
-                if (prod.first == nextSymbol) {
+            
+            // Solo generamos nuevos items si este es realmente nuevo
+            if (current.dot < current.body.size()) {
+                string nextSymbol = current.body[current.dot];
+                
+                if (grammar->isNonTerminal(nextSymbol)) {
                     set<string> lookaheads = computeLookahead(current);
                     
-                    LR1Item newItem;
-                    newItem.head = prod.first;
-                    newItem.body = prod.second;
-                    newItem.dot = 0;
-                    newItem.lookahead = lookaheads;
-                    
-                    // Verificar si ya tenemos este item (por head, body, dot)
-                    bool itemExists = false;
-                    for (const auto& existing : state) {
-                        if (existing.head == newItem.head && 
-                            existing.body == newItem.body && 
-                            existing.dot == newItem.dot) {
-                            itemExists = true;
-                            break;
+                    for (const auto& prod : grammar->getProductions()) {
+                        if (prod.first == nextSymbol) {
+                            LR1Item newItem{prod.first, prod.second, 0, lookaheads};
+                            pending.push_back(newItem);
                         }
                     }
-                    
-                    if (!itemExists) {
-                        pending.push(newItem);
-                    }
                 }
+            }
+        } else {
+            // Unir lookaheads
+            size_t oldSize = state[existingIndex].lookahead.size();
+            state[existingIndex].lookahead.insert(current.lookahead.begin(), current.lookahead.end());
+            
+            // Si crecieron los lookaheads, regenerar pendientes para este item
+            if (state[existingIndex].lookahead.size() > oldSize && 
+                state[existingIndex].dot < state[existingIndex].body.size()) {
+                // Re-procesar este item con los nuevos lookaheads
+                
+                pending.push_back(state[existingIndex]);
             }
         }
     }

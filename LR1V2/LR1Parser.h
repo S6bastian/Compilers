@@ -30,7 +30,7 @@ struct LR1Item {
 };
 
 
-typedef set<LR1Item> State;
+typedef vector<LR1Item> State;
 
 class LR1Parser {
 public:
