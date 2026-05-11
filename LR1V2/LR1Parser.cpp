@@ -2,7 +2,7 @@
 
 LR1Parser::LR1Parser(Grammar *g) {
     grammar = g;
-    buildCanonicalCollection();
+    buildStates();
 }
 
 void LR1Parser::buildStates() {
@@ -49,9 +49,8 @@ void LR1Parser::buildStates() {
 }
 
 set<string> LR1Parser::computeLookahead(LR1Item item){
-    if(item.dot + 1 == item.body.size()) return item.lookahead;
+    if(item.dot + 1 >= item.body.size()) return item.lookahead;
 
-    //string dotSymbol = item.body[item.dot];
     string nextSymbol = item.body[item.dot + 1];
     set<string> lookaheads;
 
@@ -64,119 +63,76 @@ set<string> LR1Parser::computeLookahead(LR1Item item){
             }
             lookaheads.insert(candidate);
         }
-        return lookaheads;
     }
     else
-        return {nextSymbol};
+        lookaheads.insert(nextSymbol);
+
+    return lookaheads;
 
 }
 
-vector<LR1Item> LR1Parser::closureXd(LR1Item kernel) {
-    queue<pair<string,vector<string>>> next;    // new head and vector of lookahead
+vector<LR1Item> LR1Parser::closure(vector<LR1Item> kernels) {
     vector<LR1Item> state;
-    //vector<pair<string,vector<string>>> state;
-
+    queue<LR1Item> pending;
     
-
-    if(grammar->isTerminal(kernel.body[0])) return {kernel};      // REVISAR!!!!!!!!!!!!!!!!!!!!!!!!!
+    for (const auto& item : kernels) {
+        pending.push(item);
+    }
     
-    if(kernel.dot < kernel.body.size()){
-        for(size_t cDot = kernel.dot; cDot < kernel.body.size(); cDot++){
-
+    while (!pending.empty()) {
+        LR1Item current = pending.front();
+        pending.pop();
+        
+        bool alreadyExists = false;
+        for (const auto& existing : state) {
+            if (existing.head == current.head && 
+                existing.body == current.body && 
+                existing.dot == current.dot) {
+                alreadyExists = true;
+                break;
+            }
         }
-    }
-    next.push({kernel.body[kernel.dot],})
-    while(!next.empty()){
-
-    }
-}
-
-
-State LR1Parser::closure(State I) {
-    State J = I;
-    bool changed = true;
-
-    while (changed) {
-        changed = false;
-        State currentJ = J; 
-
-        for (const auto& item : currentJ) {
-           
-            if (item.dot < item.body.size()) {
-                string B = item.body[item.dot];
-                
-                if (grammar->isNonTerminal(B)) { 
-                    vector<string> beta;
-                    for (size_t i = item.dot + 1; i < item.body.size(); ++i) {
-                        beta.push_back(item.body[i]);
-                    }
-
-
-                    set<string> lookaheads = computeFirstChain(beta, item.lookahead);
-
-
-                    for (const auto& prod : grammar->getProductions()) {
-                        if (prod.first == B) {
-                            for (const string& b : lookaheads) {
-                                LR1Item newItem{B, prod.second, 0, b};
-                                if (J.find(newItem) == J.end()) {
-                                    J.insert(newItem);
-                                    changed = true;
-                                }
-                            }
+        
+        if (!alreadyExists) {
+            state.push_back(current);
+        }
+        
+        if (current.dot >= current.body.size()) {
+            continue;
+        }
+        
+        string nextSymbol = current.body[current.dot];
+        
+        if (grammar->isNonTerminal(nextSymbol)) {
+            for (const auto& prod : grammar->getProductions()) {
+                if (prod.first == nextSymbol) {
+                    set<string> lookaheads = computeLookahead(current);
+                    
+                    LR1Item newItem;
+                    newItem.head = prod.first;
+                    newItem.body = prod.second;
+                    newItem.dot = 0;
+                    newItem.lookahead = lookaheads;
+                    
+                    // Verificar si ya tenemos este item (por head, body, dot)
+                    bool itemExists = false;
+                    for (const auto& existing : state) {
+                        if (existing.head == newItem.head && 
+                            existing.body == newItem.body && 
+                            existing.dot == newItem.dot) {
+                            itemExists = true;
+                            break;
                         }
+                    }
+                    
+                    if (!itemExists) {
+                        pending.push(newItem);
                     }
                 }
             }
         }
     }
-    return J;
+    
+    return state;
 }
 
-State LR1Parser::goTo(const State& I, const string& X) {
-    State J;
-    for (const auto& item : I) {
-        if (item.dot < item.body.size() && item.body[item.dot] == X) {
-            LR1Item movedItem = item;
-            movedItem.dot++;
-            J.insert(movedItem);
-        }
-    }
-    return closure(J);
-}
-
-set<string> LR1Parser::computeFirstChain(vector<string> beta, string lookahead) {
-    set<string> result;
-    bool allCanBeEmpty = true;
-
-    for (const string& symbol : beta) {
-        bool hasEpsilon = false;
-        for (const string& f : grammar->getFirsts(symbol)) {
-            if (f == grammar->getEmptySymbol()) hasEpsilon = true;
-            else result.insert(f);
-        }
-        if (!hasEpsilon) {
-            allCanBeEmpty = false;
-            break;
-        }
-    }
-
-    if (allCanBeEmpty) result.insert(lookahead);
-    return result;
-}
-
-void LR1Parser::printStates() const {
-    for (size_t i = 0; i < states.size(); ++i) {
-        cout << "ESTADO " << i << ":" << endl;
-        for (const auto& item : states[i]) {
-            cout << "  [" << item.head << " -> ";
-            for (int k = 0; k < item.body.size(); ++k) {
-                if (k == item.dot) cout << ". ";
-                cout << item.body[k] << " ";
-            }
-            if (item.dot == item.body.size()) cout << ". ";
-            cout << ", " << item.lookahead << "]" << endl;
-        }
-        cout << endl;
-    }
-}

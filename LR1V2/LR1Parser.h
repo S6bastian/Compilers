@@ -48,11 +48,7 @@ private:
     map<int, map<string, int>> transitions;
 
     // Funciones núcleo para la lógica de estados
-    State closureXd(LR1Item kernel);
-    State closure(State I);
-    State goTo(const State& I, const string& X);
+    vector<LR1Item> closure(vector<LR1Item> kernels);
     set<string> computeLookahead(LR1Item item);
 
-    // Calcula el FIRST de lo que queda después de un No Terminal + el lookahead actual
-    set<string> computeFirstChain(vector<string> beta, string lookahead);
 };
