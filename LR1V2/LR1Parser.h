@@ -4,11 +4,11 @@
 #include <map>
 #include <vector>
 #include <queue>
+#include <deque>
 #include <iostream>
 #include <iomanip>
 
 using namespace std;
-
 
 struct LR1Item {
     string head;
@@ -29,26 +29,22 @@ struct LR1Item {
     }
 };
 
-
 typedef vector<LR1Item> State;
 
 class LR1Parser {
 public:
     LR1Parser(Grammar *g);
 
-    void buildStates(); //buildCanonicalCollection
+    void buildStates();
     void printStates() const;
 
 private:
     Grammar *grammar;
     
-    vector<State> states; // Canonical Collection 
-    
-    // Transiciones entre estados: [ID_Origen][Simbolo] -> ID_Destino
+    vector<State> states;
     map<int, map<string, int>> transitions;
 
-    // Funciones núcleo para la lógica de estados
     vector<LR1Item> closure(vector<LR1Item> kernels);
+    State goTo(const State& state, const string& symbol);
     set<string> computeLookahead(LR1Item item);
-
 };
