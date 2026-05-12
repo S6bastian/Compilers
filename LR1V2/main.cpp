@@ -30,7 +30,7 @@ int main(){
             continue;
         }
         
-        lr1.printParseTrace(input);  // ← CAMBIA ESTA LÍNEA
+        lr1.printParseTrace(input);  
     }
 
     return 0;

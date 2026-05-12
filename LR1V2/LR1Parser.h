@@ -65,15 +65,18 @@ public:
     // export
     void exportCanonicalCollectionToJSON(const std::string& filename) const;
     void exportTableToJSON(const std::string& filename) const;
+    void exportTraceToJSON(const string& filename) const;
     
     
 private:
-    Grammar *grammar;
+    Grammar* grammar;
+    TreeNode* parseTreeRoot;
     
     vector<State> states;
     map<int, map<string, int>> transitions;
     map<int, map<string, string>> actionTable;  // actionTable[state][symbol] = "sX" o "rX" o "acc"
     map<int, map<string, int>> gotoTable;       // gotoTable[state][nonTerminal] = nextState
+    vector<vector<string>> traceTable;
 
     set<string> computeLookahead(LR1Item item);
     vector<LR1Item> closure(vector<LR1Item> kernels);

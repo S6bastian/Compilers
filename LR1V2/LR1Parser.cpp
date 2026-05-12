@@ -29,6 +29,8 @@ LR1Parser::LR1Parser(Grammar *g) {
     buildStates();
     buildTable();
     
+    parseTreeRoot = nullptr;  
+
     exportCanonicalCollectionToJSON("canonical_collection.json");
     exportTableToJSON("lr1_table.json");
 }
@@ -383,6 +385,31 @@ void LR1Parser::exportTableToJSON(const string& filename) const {
 }
 
 
+void LR1Parser::exportTraceToJSON(const string& filename) const {
+    ofstream out(filename);
+    if (!out.is_open()) {
+        cerr << "Error: no se pudo abrir " << filename << " para escritura.\n";
+        return;
+    }
+    
+    out << "{\n  \"trace\": [\n";
+    for (size_t i = 0; i < traceTable.size(); ++i) {
+        out << "    {\n";
+        out << "      \"step\": \"" << traceTable[i][0] << "\",\n";
+        out << "      \"stack\": \"" << traceTable[i][1] << "\",\n";
+        out << "      \"input\": \"" << traceTable[i][2] << "\",\n";
+        out << "      \"action\": \"" << traceTable[i][3] << "\"\n";
+        out << "    }";
+        if (i != traceTable.size() - 1) out << ",";
+        out << "\n";
+    }
+    out << "  ]\n}\n";
+    out.close();
+    
+    cout << "Trace exported to " << filename << endl;
+}
+
+
 //********************************************************************************************************************
 //PRIVATE ************************************************************************************************************
 //********************************************************************************************************************
@@ -510,11 +537,13 @@ vector<string> LR1Parser::tokenize(const string& input) {
     while (iss >> token) {
         tokens.push_back(token);
     }
-    tokens.push_back("$"); // Agregar EOF
+    tokens.push_back("$"); 
     return tokens;
 }
 
 bool LR1Parser::parse(const string& input) {
+    traceTable.clear();
+
     vector<string> tokens = tokenize(input);
     
     vector<int> stateStack;
@@ -534,11 +563,11 @@ bool LR1Parser::parse(const string& input) {
     
     while (stepCount < MAX_STEPS) {
         stepCount++;
+        vector<string> row;
         
         int currentState = stateStack.back();
         string currentToken = tokens[inputPos];
         
-        // Construir representación de la pila
         string stackStr = "";
         for (size_t i = 0; i < stateStack.size(); i++) {
             if (i > 0) stackStr += " ";
@@ -554,22 +583,34 @@ bool LR1Parser::parse(const string& input) {
             if (i > inputPos) inputStr += " ";
             inputStr += tokens[i];
         }
-        
+
+        row.push_back(to_string(stepCount));
+        row.push_back(stackStr);
+        row.push_back(inputStr);
+
+
         // Imprimir paso actual
         cout << left << setw(6) << stepCount
              << setw(30) << stackStr
              << setw(25) << inputStr;
+
         
         // Buscar acción en la tabla
         if (actionTable.find(currentState) == actionTable.end() || 
             actionTable[currentState].find(currentToken) == actionTable[currentState].end()) {
             cout << setw(10) << "ERROR" << "\n";
             cout << "Error: No action for state " << currentState << " and token '" << currentToken << "'\n";
+            
+            row.push_back("ERROR");
+            traceTable.push_back(row);
+
             return false;
         }
         
         string action = actionTable[currentState][currentToken];
         cout << setw(10) << action;
+
+        row.push_back(action);
         
         if (action == "acc") {
             cout << "\n=== Input accepted! ===\n";
@@ -577,6 +618,9 @@ bool LR1Parser::parse(const string& input) {
                 cout << "\n=== PARSE TREE ===\n";
                 printParseTree(nodeStack.back());
             }
+
+            traceTable.push_back(row);
+
             return true;
         }
         else if (action[0] == 's') {
@@ -587,6 +631,8 @@ bool LR1Parser::parse(const string& input) {
             TreeNode* leaf = new TreeNode(currentToken);
             nodeStack.push_back(leaf);
             stateStack.push_back(nextState);
+
+            traceTable.push_back(row);
             
             // Consumir token
             inputPos++;
@@ -641,6 +687,8 @@ bool LR1Parser::parse(const string& input) {
                 for (const string& s : body) cout << s << " ";
             }
             cout << ", goto " << nextState << ")\n";
+            
+            traceTable.push_back(row);
         }
     }
     
@@ -650,6 +698,7 @@ bool LR1Parser::parse(const string& input) {
 
 void LR1Parser::printParseTrace(const string& input) {
     parse(input);
+    exportTraceToJSON("trace_table.json");
 }
 
 void LR1Parser::printParseTree(TreeNode* node, int depth) const {
