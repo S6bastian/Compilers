@@ -31,6 +31,7 @@ LR1Parser::LR1Parser(Grammar *g) {
     
     parseTreeRoot = nullptr;  
 
+    exportFirstSetsToJSON("first_sets.json");
     exportCanonicalCollectionToJSON("canonical_collection.json");
     exportTableToJSON("lr1_table.json");
 }
@@ -295,6 +296,41 @@ void LR1Parser::printTable() const {
 }
 
 // export
+
+void LR1Parser::exportFirstSetsToJSON(const string& filename) const {
+    ofstream out(filename);
+    if (!out.is_open()) {
+        cerr << "Error: no se pudo abrir " << filename << " para escritura.\n";
+        return;
+    }
+    
+    out << "{\n  \"firstSets\": {\n";
+    
+    const auto& productions = grammar->getProductions();
+    set<string> nonTerminals;
+    for (const auto& prod : productions) {
+        nonTerminals.insert(prod.first);
+    }
+    
+    int ntCount = 0;
+    for (const string& nt : nonTerminals) {
+        out << "    \"" << nt << "\": [";
+        set<string> firstSet = grammar->getFirsts(nt);
+        int laCount = 0;
+        for (const string& sym : firstSet) {
+            out << "\"" << sym << "\"";
+            if (++laCount < (int)firstSet.size()) out << ", ";
+        }
+        out << "]";
+        if (++ntCount < (int)nonTerminals.size()) out << ",";
+        out << "\n";
+    }
+    
+    out << "  }\n}\n";
+    out.close();
+    
+    cout << "FIRST sets exported to " << filename << endl;
+}
 
 void LR1Parser::exportCanonicalCollectionToJSON(const string& filename) const {
     ofstream out(filename);

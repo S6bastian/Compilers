@@ -63,6 +63,7 @@ public:
     void deleteTree(TreeNode* node);
 
     // export
+    void exportFirstSetsToJSON(const std::string& filename) const;
     void exportCanonicalCollectionToJSON(const std::string& filename) const;
     void exportTableToJSON(const std::string& filename) const;
     void exportTraceToJSON(const string& filename) const;

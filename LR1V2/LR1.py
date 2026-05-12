@@ -87,7 +87,7 @@ def style_treeview(tv, columns, headings, col_widths=None):
 # PARSE TREE CANVAS DRAWING
 # ─────────────────────────────────────────────────────────────────────────────
 NODE_R  = 18
-H_GAP   = 22
+H_GAP   = 40
 V_GAP   = 54
 
 def tree_layout(node, depth=0, counter=[0]):
@@ -157,6 +157,68 @@ def render_tree_canvas(canvas, tree_data):
 
     canvas.config(scrollregion=(0, 0, max(total_w, 400), max(total_h, 300)))
     draw_tree(canvas, root, x_scale, x_off, y_off)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIRST SETS TAB
+# ─────────────────────────────────────────────────────────────────────────────
+def build_first_tab(parent):
+    frame = tk.Frame(parent, bg=BG)
+    frame.pack(fill="both", expand=True)
+    
+    tk.Label(frame, text="FIRST Sets", bg=BG,
+             font=TITLE_F, fg=ACCENT2, anchor="w").pack(fill="x", padx=10, pady=(8, 2))
+    
+    container = tk.Frame(frame, bg=PANEL, relief="solid", bd=1,
+                         highlightthickness=1, highlightbackground=BORDER)
+    container.pack(fill="both", expand=True, padx=8, pady=6)
+    
+    canvas = tk.Canvas(container, bg=PANEL, highlightthickness=0)
+    vsb = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+    canvas.configure(yscrollcommand=vsb.set)
+    
+    vsb.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+    
+    inner_frame = tk.Frame(canvas, bg=PANEL)
+    # Importante: usar window=... y anclarlo
+    canvas_window = canvas.create_window((0, 0), window=inner_frame, anchor="nw")
+    
+    def configure_scroll_region(event):
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        # Esto hace que el frame interno crezca con el canvas
+        canvas.itemconfig(canvas_window, width=event.width)
+    
+    canvas.bind("<Configure>", configure_scroll_region)
+    
+    def refresh():
+        for widget in inner_frame.winfo_children():
+            widget.destroy()
+        
+        data = load_json("first_sets.json")
+        if not data or "firstSets" not in data:
+            tk.Label(inner_frame, text="No FIRST sets data available. Run parser first.",
+                    bg=PANEL, fg=RED, font=SANS, pady=20).pack()
+            return
+        
+        for nt, symbols in data["firstSets"].items():
+            nt_frame = tk.Frame(inner_frame, bg=PANEL, relief="solid", bd=1, pady=2)
+            nt_frame.pack(fill="x", padx=10, pady=5)
+            
+            title_bg = ACCENT if nt.startswith("P'") else ACCENT2
+            tk.Label(nt_frame, text=f"FIRST({nt})", bg=title_bg, fg="white", 
+                     font=SANS_B, anchor="w", padx=10).pack(fill="x")
+            
+            content = tk.Frame(nt_frame, bg=PANEL)
+            content.pack(fill="x", padx=10, pady=5)
+            
+            for sym in symbols:
+                lbl = tk.Label(content, text=sym, bg="#e8f4e8", fg=GREEN,
+                               font=MONO_SM, relief="solid", bd=1, padx=5)
+                lbl.pack(side="left", padx=2)
+
+    frame._refresh = refresh
+    return frame
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -511,17 +573,19 @@ class LR1App(tk.Tk):
         self.nb = ttk.Notebook(right_panel)
         self.nb.pack(fill="both", expand=True)
 
+        self.tab_first     = build_first_tab(self.nb)
         self.tab_canonical = build_canonical_tab(self.nb)
         self.tab_lrtable   = build_lr_table_tab(self.nb)
         self.tab_trace     = build_trace_tab(self.nb)
         self.tab_tree      = build_tree_tab(self.nb)
 
+        self.nb.add(self.tab_first,     text="  FIRST Sets  ")
         self.nb.add(self.tab_canonical, text="  Canonical Collection  ")
         self.nb.add(self.tab_lrtable,   text="  LR Table  ")
         self.nb.add(self.tab_trace,     text="  Trace  ")
         self.nb.add(self.tab_tree,      text="  Parse Tree  ")
 
-        self.tabs = [self.tab_canonical, self.tab_lrtable,
+        self.tabs = [self.tab_first,self.tab_canonical, self.tab_lrtable,
                      self.tab_trace, self.tab_tree]
 
     def _build_left(self, parent):
