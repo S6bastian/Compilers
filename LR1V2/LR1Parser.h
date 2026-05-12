@@ -77,8 +77,8 @@ private:
     
     vector<State> states;
     map<int, map<string, int>> transitions;
-    map<int, map<string, string>> actionTable;  // actionTable[state][symbol] = "sX" o "rX" o "acc"
-    map<int, map<string, int>> gotoTable;       // gotoTable[state][nonTerminal] = nextState
+    map<int, map<string, string>> actionTable; 
+    map<int, map<string, int>> gotoTable;       
     vector<vector<string>> traceTable;
 
     set<string> computeLookahead(LR1Item item);

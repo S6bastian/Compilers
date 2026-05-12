@@ -386,7 +386,6 @@ void LR1Parser::exportTableToJSON(const string& filename) const {
     for (size_t i = 0; i < states.size(); ++i) {
         out << "    {\n      \"id\": " << i << ",\n";
 
-        // --- ACTION ---
         out << "      \"action\": {";
         if (actionTable.find(i) != actionTable.end()) {
             const auto& actions = actionTable.at(i);
@@ -398,7 +397,6 @@ void LR1Parser::exportTableToJSON(const string& filename) const {
         }
         out << "},\n";
 
-        // --- GOTO ---
         out << "      \"goto\": {";
         if (gotoTable.find(i) != gotoTable.end()) {
             const auto& gotos = gotoTable.at(i);
@@ -640,6 +638,7 @@ bool LR1Parser::parse(const string& input) {
     stateStack.push_back(0);
     size_t inputPos = 0;
     int stepCount = 0;
+    int errorCount = 0;
     const int MAX_STEPS = 100;
     
     cout << "\n=== PARSING TRACE ===\n";
@@ -665,7 +664,6 @@ bool LR1Parser::parse(const string& input) {
             }
         }
         
-        // Construir representación del input restante
         string inputStr = "";
         for (size_t i = inputPos; i < tokens.size(); i++) {
             if (i > inputPos) inputStr += " ";
@@ -677,22 +675,60 @@ bool LR1Parser::parse(const string& input) {
         row.push_back(inputStr);
 
 
-        // Imprimir paso actual
         cout << left << setw(6) << stepCount
              << setw(30) << stackStr
              << setw(25) << inputStr;
 
         
-        // Buscar acción en la tabla
         if (actionTable.find(currentState) == actionTable.end() || 
             actionTable[currentState].find(currentToken) == actionTable[currentState].end()) {
             cout << setw(10) << "ERROR" << "\n";
-            cout << "Error: No action for state " << currentState << " and token '" << currentToken << "'\n";
-            
+            cout << "  [PANIC MODE] Error en estado " << currentState 
+                 << ": token inesperado '" << currentToken << "'\n";
+            errorCount++;
+
             row.push_back("ERROR");
             traceTable.push_back(row);
 
-            return false;
+            
+            const string& syncSymbol = grammar->getProductions()[0].second[0];
+
+            
+            cout << "  [PANIC MODE] Descartando tokens hasta encontrar '$'...\n";
+            while (tokens[inputPos] != "$") {
+                cout << "  [PANIC MODE]   descartado: '" << tokens[inputPos] << "'\n";
+                inputPos++;
+            }
+            currentToken = "$";
+
+            cout << "  [PANIC MODE] Buscando estado ancla con ACTION['$']...\n";
+            bool recovered = false;
+            while (!stateStack.empty()) {
+                int topSt = stateStack.back();
+                bool hasAction =
+                    actionTable.find(topSt) != actionTable.end() &&
+                    actionTable.at(topSt).find("$") != actionTable.at(topSt).end();
+                if (hasAction) {
+                    cout << "  [PANIC MODE] Recuperado en estado " << topSt
+                        << ": ACTION[" << topSt << ",['$']] = "
+                        << actionTable.at(topSt).at("$") << "\n";
+                    recovered = true;
+                    break;
+                }
+                stateStack.pop_back();
+                if (!nodeStack.empty()) {
+                    delete nodeStack.back();
+                    nodeStack.pop_back();
+                }
+            }
+
+            if (!recovered || stateStack.empty()) {
+                cout << "  [PANIC MODE] No se pudo recuperar. Abortando.\n";
+                return false;
+            }
+
+            continue;
+            // ──────────────────────────────────────────────────────────────────
         }
         
         string action = actionTable[currentState][currentToken];
@@ -701,7 +737,12 @@ bool LR1Parser::parse(const string& input) {
         row.push_back(action);
         
         if (action == "acc") {
-            cout << "\n=== Input accepted! ===\n";
+            if (errorCount > 0) {
+                cout << "\n=== Input aceptado con " << errorCount 
+                     << " error(es) recuperado(s). ===\n";
+            } else {
+                cout << "\n=== Input accepted! ===\n";
+            }
             if (!nodeStack.empty()) {
                 cout << "\n=== PARSE TREE ===\n";
                 parseTreeRoot = nodeStack.back();
@@ -710,41 +751,34 @@ bool LR1Parser::parse(const string& input) {
 
             traceTable.push_back(row);
 
-            return true;
+            return (errorCount == 0);
         }
         else if (action[0] == 's') {
-            // Shift
             int nextState = stoi(action.substr(1));
             
-            // Crear nodo hoja para el terminal
             TreeNode* leaf = new TreeNode(currentToken);
             nodeStack.push_back(leaf);
             stateStack.push_back(nextState);
 
             traceTable.push_back(row);
             
-            // Consumir token
             inputPos++;
             
             cout << "  (Shift to state " << nextState << ")\n";
         }
         else if (action[0] == 'r') {
-            // Reduce
             int prodIndex = stoi(action.substr(1));
             const auto& productions = grammar->getProductions();
             const auto& [head, body] = productions[prodIndex];
             
             TreeNode* newNode = new TreeNode(head);
             
-            // Pop estados y nodos según el tamaño del cuerpo
             int popCount = body.size();
             if (body.size() == 1 && body[0] == grammar->getEmptySymbol()) {
-                // Producción epsilon
-                popCount = 0;
+               popCount = 0;
                 TreeNode* epsilonNode = new TreeNode(grammar->getEmptySymbol());
                 newNode->children.push_back(epsilonNode);
             } else {
-                // Insertar hijos en orden inverso
                 for (int i = popCount - 1; i >= 0; i--) {
                     if (!nodeStack.empty()) {
                         newNode->children.insert(newNode->children.begin(), nodeStack.back());
@@ -758,7 +792,6 @@ bool LR1Parser::parse(const string& input) {
             
             nodeStack.push_back(newNode);
             
-            // Calcular nuevo estado (GOTO)
             int topState = stateStack.back();
             if (gotoTable.find(topState) == gotoTable.end() || 
                 gotoTable[topState].find(head) == gotoTable[topState].end()) {
@@ -794,7 +827,6 @@ void LR1Parser::printParseTrace(const string& input) {
 void LR1Parser::printParseTree(TreeNode* node, int depth) const {
     if (!node) return;
     
-    // Indentación
     for (int i = 0; i < depth; i++) {
         cout << "  ";
     }

@@ -1,2 +1,10 @@
-P -> ( P )
-P -> a
+S -> Z a
+Z -> C C
+C -> C c
+C -> d
+C -> e
+C -> G g
+G -> e
+G -> x
+G -> W
+W -> e

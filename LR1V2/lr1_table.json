@@ -2,52 +2,82 @@
   "states": [
     {
       "id": 0,
-      "action": {"(": "s1", "a": "s3"},
-      "goto": {"P": 2}
+      "action": {"a": "r5", "c": "r5", "d": "s6", "g": "r5", "x": "s7"},
+      "goto": {"C": 1, "G": 2, "S": 3, "W": 4, "Z": 5}
     },
     {
       "id": 1,
-      "action": {"(": "s4", "a": "s6"},
-      "goto": {"P": 5}
+      "action": {"a": "r5", "c": "s10", "d": "s11", "g": "r7", "x": "s7"},
+      "goto": {"C": 8, "G": 9, "W": 4}
     },
     {
       "id": 2,
-      "action": {"$": "acc"},
+      "action": {"g": "s12"},
       "goto": {}
     },
     {
       "id": 3,
-      "action": {"$": "r2"},
+      "action": {"$": "acc"},
       "goto": {}
     },
     {
       "id": 4,
-      "action": {"(": "s4", "a": "s6"},
-      "goto": {"P": 7}
+      "action": {"g": "r9"},
+      "goto": {}
     },
     {
       "id": 5,
-      "action": {")": "s8"},
+      "action": {"a": "s13"},
       "goto": {}
     },
     {
       "id": 6,
-      "action": {")": "r2"},
+      "action": {"a": "r4", "c": "r4", "d": "r4", "g": "r4", "x": "r4"},
       "goto": {}
     },
     {
       "id": 7,
-      "action": {")": "s9"},
+      "action": {"g": "r8"},
       "goto": {}
     },
     {
       "id": 8,
-      "action": {"$": "r1"},
+      "action": {"a": "r2", "c": "s14"},
       "goto": {}
     },
     {
       "id": 9,
-      "action": {")": "r1"},
+      "action": {"g": "s15"},
+      "goto": {}
+    },
+    {
+      "id": 10,
+      "action": {"a": "r3", "c": "r3", "d": "r3", "g": "r3", "x": "r3"},
+      "goto": {}
+    },
+    {
+      "id": 11,
+      "action": {"a": "r4", "c": "r4"},
+      "goto": {}
+    },
+    {
+      "id": 12,
+      "action": {"a": "r6", "c": "r6", "d": "r6", "g": "r6", "x": "r6"},
+      "goto": {}
+    },
+    {
+      "id": 13,
+      "action": {"$": "r1"},
+      "goto": {}
+    },
+    {
+      "id": 14,
+      "action": {"a": "r3", "c": "r3"},
+      "goto": {}
+    },
+    {
+      "id": 15,
+      "action": {"a": "r6", "c": "r6"},
       "goto": {}
     }
   ]

@@ -4,37 +4,7 @@
       "step": "1",
       "stack": "0",
       "input": "( a ) $",
-      "action": "s1"
-    },
-    {
-      "step": "2",
-      "stack": "0 ( 1",
-      "input": "a ) $",
-      "action": "s6"
-    },
-    {
-      "step": "3",
-      "stack": "0 ( 1 a 6",
-      "input": ") $",
-      "action": "r2"
-    },
-    {
-      "step": "4",
-      "stack": "0 ( 1 P 5",
-      "input": ") $",
-      "action": "s8"
-    },
-    {
-      "step": "5",
-      "stack": "0 ( 1 P 5 ) 8",
-      "input": "$",
-      "action": "r1"
-    },
-    {
-      "step": "6",
-      "stack": "0 P 2",
-      "input": "$",
-      "action": "acc"
+      "action": "ERROR"
     }
   ]
 }
