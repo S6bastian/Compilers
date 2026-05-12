@@ -14,8 +14,8 @@ public:
     const string& getStartSymbol() const;
     const string& getEmptySymbol() const;
     const set<string> getFirsts(const string& head) const;
-    bool isTerminal(const string& symbol);
-    bool isNonTerminal(const string& symbol);
+    bool isTerminal(const string& symbol) const;
+    bool isNonTerminal(const string& symbol) const;
     void printDebug() const;
 
 private:

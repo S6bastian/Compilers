@@ -61,12 +61,13 @@ void Grammar::loadFromFile(const string& filename) {
         productions.push_back({head, body});
         nonTerminals.insert(head);
     }
-
+    /*
     stable_sort(productions.begin(), productions.end(), [this](const auto& a, const auto& b){
         if (a.first == startSymbol && b.first != startSymbol) return true;
         if (b.first == startSymbol && a.first != startSymbol) return false;
         return a.first < b.first;
     });
+    */
 }
 
 
@@ -87,11 +88,11 @@ const set<string> Grammar::getFirsts(const string& head) const{
     return firsts.at(head);
 }
 
-bool Grammar::isTerminal(const string& symbol){
+bool Grammar::isTerminal(const string& symbol) const{
     return terminals.find(symbol) != terminals.end();
 }
 
-bool Grammar::isNonTerminal(const string& symbol){
+bool Grammar::isNonTerminal(const string& symbol) const{
     return nonTerminals.find(symbol) != nonTerminals.end();
 }
 

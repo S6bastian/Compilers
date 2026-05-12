@@ -7,6 +7,7 @@
 #include <deque>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 
 using namespace std;
 
@@ -37,12 +38,16 @@ public:
 
     void buildStates();
     void printStates() const;
+    void buildTable();
+    void printTable() const;
 
 private:
     Grammar *grammar;
     
     vector<State> states;
     map<int, map<string, int>> transitions;
+    map<int, map<string, string>> actionTable;  // actionTable[state][symbol] = "sX" o "rX" o "acc"
+    map<int, map<string, int>> gotoTable;       // gotoTable[state][nonTerminal] = nextState
 
     vector<LR1Item> closure(vector<LR1Item> kernels);
     State goTo(const State& state, const string& symbol);
