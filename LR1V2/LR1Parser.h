@@ -66,6 +66,8 @@ public:
     void exportCanonicalCollectionToJSON(const std::string& filename) const;
     void exportTableToJSON(const std::string& filename) const;
     void exportTraceToJSON(const string& filename) const;
+    void exportParseTreeToJSON(const string& filename) const;
+    void exportTreeNodeToJSON(ofstream& out, const TreeNode* node, int depth) const;
     
     
 private:

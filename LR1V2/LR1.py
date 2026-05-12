@@ -1,487 +1,664 @@
-import json
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-from tkinter.scrolledtext import ScrolledText
+from tkinter import ttk, scrolledtext, messagebox, font
 import subprocess
+import json
 import os
-import re
-from pathlib import Path
+import math
 
-class LR1GrammarApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("LR(1) Parser - Grammar Processor")
-        self.root.geometry("1400x800")
-        
-        # Variables
-        self.grammar_file = None
-        self.canonical_file = None
-        self.table_file = None
-        
-        # Configurar estilos
-        self.setup_styles()
-        
-        # Crear interfaz
-        self.create_widgets()
-        
-    def setup_styles(self):
-        """Configurar estilos de la interfaz"""
-        style = ttk.Style()
-        style.theme_use('clam')
-        
-        # Configurar colores
-        self.bg_color = "#2b2b2b"
-        self.fg_color = "#f8f8f2"
-        self.accent_color = "#6272a4"
-        self.error_color = "#ff5555"
-        self.success_color = "#50fa7b"
-        
-        self.root.configure(bg=self.bg_color)
-        
-    def create_widgets(self):
-        """Crear todos los widgets de la interfaz"""
-        # Frame principal con paneles
-        self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
-        self.main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        
-        # Panel izquierdo - Entrada de gramática
-        self.create_input_panel()
-        
-        # Panel derecho - Visualización
-        self.create_output_panel()
-        
-    def create_input_panel(self):
-        """Panel para entrada de gramática"""
-        left_frame = ttk.Frame(self.main_paned)
-        self.main_paned.add(left_frame, weight=1)
-        
-        # Título
-        title_label = tk.Label(left_frame, text="GRAMMAR INPUT", 
-                               font=("Arial", 14, "bold"),
-                               bg=self.bg_color, fg=self.accent_color)
-        title_label.pack(pady=10)
-        
-        # Frame para el editor de gramática
-        editor_frame = ttk.LabelFrame(left_frame, text="Grammar Rules")
-        editor_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # Área de texto para gramática
-        self.grammar_text = ScrolledText(editor_frame, height=15, width=50,
-                                        font=("Courier", 10),
-                                        bg="#1e1e1e", fg=self.fg_color,
-                                        insertbackground=self.fg_color)
-        self.grammar_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        
-        # Insertar gramática de ejemplo
-        example_grammar = """P' → P
-P → ( P )
-P → a
+# ─────────────────────────────────────────────────────────────────────────────
+# THEME
+# ─────────────────────────────────────────────────────────────────────────────
+BG         = "#f5f5f0"
+PANEL      = "#ffffff"
+BORDER     = "#c8c8c0"
+ACCENT     = "#2e6da4"
+ACCENT2    = "#1a4a72"
+GREEN      = "#2a7a3b"
+RED        = "#b03030"
+TEXT       = "#1a1a1a"
+TEXT_DIM   = "#666660"
+MONO       = ("Courier New", 10)
+MONO_SM    = ("Courier New", 9)
+SANS       = ("Helvetica", 10)
+SANS_B     = ("Helvetica", 10, "bold")
+SANS_SM    = ("Helvetica", 9)
+TITLE_F    = ("Helvetica", 11, "bold")
 
-# Terminales: a, (, )
-# No terminales: P, P'
-# Símbolo inicial: P'"""
-        self.grammar_text.insert("1.0", example_grammar)
-        
-        # Botones
-        button_frame = ttk.Frame(left_frame)
-        button_frame.pack(pady=10)
-        
-        self.process_btn = tk.Button(button_frame, text="PROCESS GRAMMAR", 
-                                     command=self.process_grammar,
-                                     bg=self.accent_color, fg="white",
-                                     font=("Arial", 10, "bold"),
-                                     padx=20, pady=5)
-        self.process_btn.pack(side=tk.LEFT, padx=5)
-        
-        self.load_json_btn = tk.Button(button_frame, text="LOAD JSON FILES",
-                                       command=self.load_json_files,
-                                       bg="#44475a", fg="white",
-                                       font=("Arial", 10, "bold"),
-                                       padx=20, pady=5)
-        self.load_json_btn.pack(side=tk.LEFT, padx=5)
-        
-        # Frame para archivos generados
-        files_frame = ttk.LabelFrame(left_frame, text="Generated Files")
-        files_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        self.files_listbox = tk.Listbox(files_frame, height=4,
-                                        bg="#1e1e1e", fg=self.fg_color)
-        self.files_listbox.pack(fill=tk.X, padx=5, pady=5)
-        
-    def create_output_panel(self):
-        """Panel para visualización de resultados"""
-        right_frame = ttk.Frame(self.main_paned)
-        self.main_paned.add(right_frame, weight=2)
-        
-        # Notebook para pestañas
-        self.notebook = ttk.Notebook(right_frame)
-        self.notebook.pack(fill=tk.BOTH, expand=True)
-        
-        # Pestaña: Gramática formateada
-        self.create_grammar_tab()
-        
-        # Pestaña: Canonical Collection
-        self.create_canonical_tab()
-        
-        # Pestaña: LR Table
-        self.create_lr_table_tab()
-        
-        # Pestaña: Trace (simulación)
-        self.create_trace_tab()
-        
-    def create_grammar_tab(self):
-        """Pestaña para mostrar gramática formateada"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="📖 Grammar")
-        
-        # Área de texto con scroll
-        self.grammar_display = ScrolledText(tab, font=("Courier", 10),
-                                           bg="#1e1e1e", fg=self.fg_color)
-        self.grammar_display.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        
-    def create_canonical_tab(self):
-        """Pestaña para mostrar Canonical Collection"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="🔍 Canonical Collection")
-        
-        # Treeview para mostrar estados
-        self.canonical_tree = ttk.Treeview(tab, columns=("ID", "Items"), show="tree headings")
-        self.canonical_tree.heading("#0", text="")
-        self.canonical_tree.heading("ID", text="State ID")
-        self.canonical_tree.heading("Items", text="LR(1) Items")
-        self.canonical_tree.column("#0", width=0, stretch=False)
-        self.canonical_tree.column("ID", width=80)
-        self.canonical_tree.column("Items", width=600)
-        
-        # Scrollbars
-        v_scroll = ttk.Scrollbar(tab, orient="vertical", command=self.canonical_tree.yview)
-        h_scroll = ttk.Scrollbar(tab, orient="horizontal", command=self.canonical_tree.xview)
-        self.canonical_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
-        
-        self.canonical_tree.grid(row=0, column=0, sticky="nsew")
-        v_scroll.grid(row=0, column=1, sticky="ns")
-        h_scroll.grid(row=1, column=0, sticky="ew")
-        
-        tab.grid_rowconfigure(0, weight=1)
-        tab.grid_columnconfigure(0, weight=1)
-        
-    def create_lr_table_tab(self):
-        """Pestaña para mostrar LR Table"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="📊 LR(1) Table")
-        
-        # Frame para tabla
-        table_frame = ttk.Frame(tab)
-        table_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Canvas con scroll para tabla grande
-        canvas = tk.Canvas(table_frame, bg=self.bg_color)
-        h_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=canvas.xview)
-        v_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=canvas.yview)
-        
-        self.table_container = ttk.Frame(canvas)
-        self.table_container.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        
-        canvas.create_window((0, 0), window=self.table_container, anchor="nw")
-        canvas.configure(xscrollcommand=h_scroll.set, yscrollcommand=v_scroll.set)
-        
-        canvas.grid(row=0, column=0, sticky="nsew")
-        v_scroll.grid(row=0, column=1, sticky="ns")
-        h_scroll.grid(row=1, column=0, sticky="ew")
-        
-        table_frame.grid_rowconfigure(0, weight=1)
-        table_frame.grid_columnconfigure(0, weight=1)
-        
-        self.lr_table_labels = {}  # Para almacenar labels de la tabla
-        
-    def create_trace_tab(self):
-        """Pestaña para simulación y trace"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="⚙️ Parse Trace")
-        
-        # Frame de entrada
-        input_frame = ttk.Frame(tab)
-        input_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        ttk.Label(input_frame, text="Input String:").pack(side=tk.LEFT, padx=5)
-        self.input_entry = ttk.Entry(input_frame, width=40, font=("Courier", 10))
-        self.input_entry.pack(side=tk.LEFT, padx=5)
-        self.input_entry.insert(0, "( a )")
-        
-        self.parse_btn = tk.Button(input_frame, text="PARSE", 
-                                   command=self.parse_input,
-                                   bg=self.success_color, fg="black",
-                                   font=("Arial", 9, "bold"))
-        self.parse_btn.pack(side=tk.LEFT, padx=10)
-        
-        self.steps_spinbox = ttk.Spinbox(input_frame, from_=1, to=100, width=10)
-        self.steps_spinbox.set(50)
-        self.steps_spinbox.pack(side=tk.LEFT, padx=5)
-        ttk.Label(input_frame, text="max steps").pack(side=tk.LEFT)
-        
-        # Área de trace
-        self.trace_text = ScrolledText(tab, font=("Courier", 9),
-                                      bg="#1e1e1e", fg=self.fg_color,
-                                      height=20)
-        self.trace_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-    def process_grammar(self):
-        """Procesar gramática ingresada"""
-        grammar = self.grammar_text.get("1.0", tk.END).strip()
-        
-        if not grammar:
-            messagebox.showerror("Error", "Please enter a grammar")
+GRAMMAR_DEFAULT = "P -> ( P )\nP -> a"
+EXE_NAME        = "lr1.exe"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+def load_json(path):
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def write_grammar(text):
+    clean = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line:
+            clean.append(line)
+    with open("grammar.txt", "w", encoding="ascii", errors="ignore") as f:
+        f.write("\n".join(clean) + "\n")
+
+
+def run_parser(input_tokens):
+    """Run lr1.exe with the given token string, return (stdout, stderr, returncode)."""
+    if not os.path.exists(EXE_NAME):
+        return "", f"Executable '{EXE_NAME}' not found in current directory.", 1
+    try:
+        proc = subprocess.run(
+            [EXE_NAME],
+            input=input_tokens + "\nquit\n",
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        return proc.stdout, proc.stderr, proc.returncode
+    except subprocess.TimeoutExpired:
+        return "", "Timeout: executable took too long.", 1
+    except Exception as e:
+        return "", str(e), 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TREEVIEW HELPER
+# ─────────────────────────────────────────────────────────────────────────────
+def clear_treeview(tv):
+    for item in tv.get_children():
+        tv.delete(item)
+
+
+def style_treeview(tv, columns, headings, col_widths=None):
+    tv["columns"] = columns
+    tv["show"] = "headings"
+    for i, col in enumerate(columns):
+        tv.heading(col, text=headings[i], anchor="w")
+        w = col_widths[i] if col_widths else 100
+        tv.column(col, width=w, minwidth=40, anchor="w")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARSE TREE CANVAS DRAWING
+# ─────────────────────────────────────────────────────────────────────────────
+NODE_R  = 18
+H_GAP   = 22
+V_GAP   = 54
+
+def tree_layout(node, depth=0, counter=[0]):
+    """Assign (x_index, depth) to every node via in-order traversal."""
+    if not node.get("children"):
+        node["_x"] = counter[0]
+        node["_y"] = depth
+        counter[0] += 1
+    else:
+        for child in node["children"]:
+            tree_layout(child, depth + 1, counter)
+        xs = [c["_x"] for c in node["children"]]
+        node["_x"] = (xs[0] + xs[-1]) / 2.0
+        node["_y"] = depth
+
+
+def draw_tree(canvas, node, x_scale, x_off, y_off):
+    cx = int(node["_x"] * x_scale + x_off)
+    cy = int(node["_y"] * V_GAP + y_off)
+
+    # draw edges first
+    for child in node.get("children", []):
+        ccx = int(child["_x"] * x_scale + x_off)
+        ccy = int(child["_y"] * V_GAP + y_off)
+        canvas.create_line(cx, cy + NODE_R, ccx, ccy - NODE_R,
+                           fill=BORDER, width=1)
+        draw_tree(canvas, child, x_scale, x_off, y_off)
+
+    # terminal vs non-terminal
+    sym = node["symbol"]
+    is_term = not node.get("children")
+    fill  = PANEL if not is_term else "#e8f4e8"
+    outline = ACCENT if not is_term else GREEN
+    lw = 2 if not is_term else 1
+
+    canvas.create_oval(cx - NODE_R, cy - NODE_R, cx + NODE_R, cy + NODE_R,
+                       fill=fill, outline=outline, width=lw)
+    canvas.create_text(cx, cy, text=sym, font=MONO_SM, fill=TEXT)
+
+
+def render_tree_canvas(canvas, tree_data):
+    canvas.delete("all")
+    if not tree_data:
+        canvas.create_text(200, 80, text="No parse tree data.", font=SANS, fill=TEXT_DIM)
+        return
+
+    root = tree_data.get("parseTree") or tree_data
+    counter = [0]
+    tree_layout(root, 0, counter)
+    leaves = counter[0]
+
+    x_scale = max(H_GAP, H_GAP)
+    x_off   = 30
+    y_off   = 30
+
+    total_w = leaves * x_scale + 2 * x_off
+    total_h = (root["_y"] + 2) * V_GAP + y_off   # root _y is 0 but children go deeper
+
+    # recalculate real depth
+    def max_depth(n):
+        if not n.get("children"):
+            return n["_y"]
+        return max(max_depth(c) for c in n["children"])
+
+    depth = max_depth(root)
+    total_h = (depth + 1) * V_GAP + 2 * y_off
+
+    canvas.config(scrollregion=(0, 0, max(total_w, 400), max(total_h, 300)))
+    draw_tree(canvas, root, x_scale, x_off, y_off)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CANONICAL COLLECTION TAB
+# ─────────────────────────────────────────────────────────────────────────────
+def build_canonical_tab(parent):
+    frame = tk.Frame(parent, bg=BG)
+    frame.pack(fill="both", expand=True)
+
+    label = tk.Label(frame, text="Canonical LR(1) Collection", bg=BG,
+                     font=TITLE_F, fg=ACCENT2, anchor="w")
+    label.pack(fill="x", padx=10, pady=(8, 2))
+
+    # left: state list
+    pane = tk.PanedWindow(frame, orient="horizontal", bg=BG, sashwidth=5,
+                          sashrelief="flat")
+    pane.pack(fill="both", expand=True, padx=8, pady=6)
+
+    left = tk.Frame(pane, bg=PANEL, relief="solid", bd=1,
+                    highlightthickness=1, highlightbackground=BORDER)
+    pane.add(left, minsize=130)
+
+    tk.Label(left, text="States", bg=PANEL, font=SANS_B, fg=TEXT,
+             anchor="w", padx=6, pady=4).pack(fill="x")
+    sep = tk.Frame(left, bg=BORDER, height=1)
+    sep.pack(fill="x")
+
+    state_lb_var = tk.Variable(value=[])
+    state_lb = tk.Listbox(left, listvariable=state_lb_var,
+                          bg=PANEL, fg=TEXT, selectbackground=ACCENT,
+                          selectforeground="white", font=MONO,
+                          relief="flat", bd=0, highlightthickness=0,
+                          activestyle="none")
+    state_lb.pack(fill="both", expand=True, padx=2, pady=2)
+
+    right = tk.Frame(pane, bg=PANEL, relief="solid", bd=1,
+                     highlightthickness=1, highlightbackground=BORDER)
+    pane.add(right, minsize=400)
+
+    tk.Label(right, text="Items", bg=PANEL, font=SANS_B, fg=TEXT,
+             anchor="w", padx=6, pady=4).pack(fill="x")
+    sep2 = tk.Frame(right, bg=BORDER, height=1)
+    sep2.pack(fill="x")
+
+    cols = ("head", "body", "dot", "lookahead")
+    heads = ("Head", "Body", "Dot", "Lookahead")
+    widths = (60, 200, 40, 140)
+
+    item_frame = tk.Frame(right, bg=PANEL)
+    item_frame.pack(fill="both", expand=True)
+
+    tv = ttk.Treeview(item_frame, columns=cols, show="headings", selectmode="browse")
+    style_treeview(tv, cols, heads, widths)
+    vsb = ttk.Scrollbar(item_frame, orient="vertical", command=tv.yview)
+    tv.configure(yscrollcommand=vsb.set)
+    tv.pack(side="left", fill="both", expand=True)
+    vsb.pack(side="right", fill="y")
+
+    # wire
+    states_data = [None]
+
+    def refresh():
+        data = load_json("canonical_collection.json")
+        if not data:
             return
-        
-        # Guardar gramática en archivo
-        self.grammar_file = "grammar.txt"
-        with open(self.grammar_file, "w", encoding="utf-8") as f:
-            f.write(grammar)
-        
-        # Formatear y mostrar gramática
-        self.display_formatted_grammar(grammar)
-        
-        # Simular procesamiento (aquí llamarías a tu parser en C++)
-        # Por ahora, creamos JSONs de ejemplo si no existen
-        self.simulate_parser_output()
-        
-        # Cargar y mostrar los JSONs
-        self.load_and_display_jsons()
-        
-        messagebox.showinfo("Success", "Grammar processed successfully!")
-        
-    def display_formatted_grammar(self, grammar):
-        """Mostrar gramática formateada"""
-        self.grammar_display.delete("1.0", tk.END)
-        
-        # Formatear gramática
-        lines = grammar.split('\n')
-        formatted = []
-        formatted.append("=" * 60)
-        formatted.append("LR(1) GRAMMAR")
-        formatted.append("=" * 60)
-        
-        rule_num = 0
-        for line in lines:
-            line = line.strip()
-            if line and not line.startswith('#'):
-                if '→' in line:
-                    formatted.append(f"| ({rule_num}) | {line} |")
-                    rule_num += 1
-                elif line:
-                    formatted.append(f"|   | {line} |")
-            elif line.startswith('#'):
-                formatted.append(f"|   | {line[1:].strip()} |")
-        
-        formatted.append("=" * 60)
-        
-        self.grammar_display.insert("1.0", "\n".join(formatted))
-        
-    def simulate_parser_output(self):
-        """Simular salida del parser (reemplazar con llamada real a C++)"""
-        # Crear archivos JSON de ejemplo si no existen
-        if not os.path.exists("canonical_collection.json"):
-            # Este es el JSON que proporcionaste
-            canonical_data = {
-                "states": [
-                    {"id": 0, "items": [{"head": "P'", "body": ["P"], "dot": 0, "lookahead": ["$"]},
-                                       {"head": "P", "body": ["(", "P", ")"], "dot": 0, "lookahead": ["$"]},
-                                       {"head": "P", "body": ["a"], "dot": 0, "lookahead": ["$"]}]},
-                    {"id": 1, "items": [{"head": "P", "body": ["(", "P", ")"], "dot": 1, "lookahead": ["$"]},
-                                       {"head": "P", "body": ["(", "P", ")"], "dot": 0, "lookahead": [")"]},
-                                       {"head": "P", "body": ["a"], "dot": 0, "lookahead": [")"]}]},
-                    {"id": 2, "items": [{"head": "P'", "body": ["P"], "dot": 1, "lookahead": ["$"]}]}
-                ]
-            }
-            with open("canonical_collection.json", "w") as f:
-                json.dump(canonical_data, f, indent=2)
-        
-        if not os.path.exists("lr1_table.json"):
-            table_data = {
-                "states": [
-                    {"id": 0, "action": {"(": "s1", "a": "s3"}, "goto": {"P": 2}},
-                    {"id": 1, "action": {"(": "s4", "a": "s6"}, "goto": {"P": 5}},
-                    {"id": 2, "action": {"$": "acc"}, "goto": {}},
-                    {"id": 3, "action": {"$": "r2"}, "goto": {}}
-                ]
-            }
-            with open("lr1_table.json", "w") as f:
-                json.dump(table_data, f, indent=2)
-        
-        # Actualizar lista de archivos
-        self.update_files_list()
-        
-    def load_json_files(self):
-        """Cargar archivos JSON existentes"""
-        self.canonical_file = filedialog.askopenfilename(
-            title="Select Canonical Collection JSON",
-            filetypes=[("JSON files", "*.json")]
-        )
-        
-        self.table_file = filedialog.askopenfilename(
-            title="Select LR Table JSON",
-            filetypes=[("JSON files", "*.json")]
-        )
-        
-        if self.canonical_file and self.table_file:
-            self.load_and_display_jsons()
-            
-    def load_and_display_jsons(self):
-        """Cargar y mostrar ambos JSONs"""
-        # Cargar Canonical Collection
-        if os.path.exists("canonical_collection.json"):
-            with open("canonical_collection.json", "r") as f:
-                canonical_data = json.load(f)
-                self.display_canonical_collection(canonical_data)
-        
-        # Cargar LR Table
-        if os.path.exists("lr1_table.json"):
-            with open("lr1_table.json", "r") as f:
-                table_data = json.load(f)
-                self.display_lr_table(table_data)
-                
-        self.update_files_list()
-        
-    def display_canonical_collection(self, data):
-        """Mostrar Canonical Collection en treeview"""
-        # Limpiar treeview
-        for item in self.canonical_tree.get_children():
-            self.canonical_tree.delete(item)
-        
-        for state in data['states']:
-            state_id = state['id']
-            items_text = []
-            for item in state['items']:
-                # Formatear item
-                body = item['body']
-                dot_pos = item['dot']
-                body_with_dot = body[:dot_pos] + ['•'] + body[dot_pos:]
-                prod = f"{item['head']} → {' '.join(body_with_dot)}"
-                lookahead = f"[{', '.join(item['lookahead'])}]"
-                items_text.append(f"{prod}  {lookahead}")
-            
-            items_display = "\n".join(items_text)
-            self.canonical_tree.insert("", "end", values=(state_id, items_display))
-            
-    def display_lr_table(self, data):
-        """Mostrar LR Table como grid"""
-        # Limpiar container
-        for widget in self.table_container.winfo_children():
-            widget.destroy()
-        
-        # Obtener todos los símbolos
-        all_actions = set()
-        all_gotos = set()
-        for state in data['states']:
-            all_actions.update(state['action'].keys())
-            all_gotos.update(state['goto'].keys())
-        
-        # Ordenar terminales y no terminales
-        terminals = sorted([t for t in all_actions if t != '$'])
-        terminals.append('$')
-        nonterminals = sorted(all_gotos)
-        headers = ['State'] + terminals + nonterminals
-        
-        # Crear tabla con Labels
-        for i, header in enumerate(headers):
-            label = tk.Label(self.table_container, text=header,
-                           font=("Arial", 10, "bold"),
-                           bg=self.accent_color, fg="white",
-                           padx=10, pady=5, relief="ridge")
-            label.grid(row=0, column=i, sticky="nsew")
-        
-        # Llenar datos
-        for state in sorted(data['states'], key=lambda x: x['id']):
-            row_idx = state['id'] + 1
-            # State ID
-            state_label = tk.Label(self.table_container, text=f"{state['id']}",
-                                  font=("Courier", 9),
-                                  bg="#44475a", fg=self.fg_color,
-                                  padx=5, pady=3, relief="ridge")
-            state_label.grid(row=row_idx, column=0, sticky="nsew")
-            
-            # Actions
-            for col_idx, symbol in enumerate(terminals, start=1):
-                value = state['action'].get(symbol, "")
-                if value:
-                    color = self.success_color if value == "acc" else self.accent_color
-                    label = tk.Label(self.table_container, text=value,
-                                   font=("Courier", 9),
-                                   bg="#2b2b2b", fg=color,
-                                   padx=5, pady=3, relief="ridge")
-                else:
-                    label = tk.Label(self.table_container, text="",
-                                   bg="#2b2b2b", padx=5, pady=3, relief="ridge")
-                label.grid(row=row_idx, column=col_idx, sticky="nsew")
-            
-            # Gotos
-            for col_idx, symbol in enumerate(nonterminals, start=len(terminals)+1):
-                value = state['goto'].get(symbol, "")
-                if value:
-                    label = tk.Label(self.table_container, text=str(value),
-                                   font=("Courier", 9),
-                                   bg="#2b2b2b", fg="#ffb86c",
-                                   padx=5, pady=3, relief="ridge")
-                else:
-                    label = tk.Label(self.table_container, text="",
-                                   bg="#2b2b2b", padx=5, pady=3, relief="ridge")
-                label.grid(row=row_idx, column=col_idx, sticky="nsew")
-        
-        # Configurar pesos de columnas
-        for i in range(len(headers)):
-            self.table_container.grid_columnconfigure(i, weight=1)
-            
-    def parse_input(self):
-        """Simular parsing del input"""
-        input_string = self.input_entry.get().strip()
-        max_steps = int(self.steps_spinbox.get())
-        
-        self.trace_text.delete("1.0", tk.END)
-        
-        # Simular trace
-        trace = []
-        trace.append("=" * 80)
-        trace.append("LR(1) PARSING TRACE")
-        trace.append("=" * 80)
-        trace.append(f"{'Step':<6} {'Stack':<30} {'Input':<30} {'Action':<20}")
-        trace.append("-" * 80)
-        
-        # Simulación simple
-        tokens = input_string.split()
-        stack = [0]
-        pos = 0
-        
-        for step in range(1, max_steps + 1):
-            if pos >= len(tokens):
-                remaining = "$"
-            else:
-                remaining = " ".join(tokens[pos:]) + " $"
-            
-            stack_str = " ".join(str(s) for s in stack)
-            trace.append(f"{step:<6} {stack_str:<30} {remaining:<30} ...")
-            
-            if step >= 10:  # Simulación terminada
-                trace.append("-" * 80)
-                trace.append("✓ Parse completed successfully!")
-                break
-        
-        self.trace_text.insert("1.0", "\n".join(trace))
-        
-    def update_files_list(self):
-        """Actualizar lista de archivos generados"""
-        self.files_listbox.delete(0, tk.END)
-        
-        files = ["grammar.txt", "canonical_collection.json", "lr1_table.json"]
-        for file in files:
-            if os.path.exists(file):
-                self.files_listbox.insert(tk.END, f"✓ {file}")
-            else:
-                self.files_listbox.insert(tk.END, f"✗ {file}")
+        states_data[0] = data.get("states", [])
+        names = [f"  State {s['id']}" for s in states_data[0]]
+        state_lb_var.set(names)
+        if states_data[0]:
+            state_lb.selection_set(0)
+            show_state(0)
 
-def main():
-    root = tk.Tk()
-    app = LR1GrammarApp(root)
-    root.mainloop()
+    def show_state(idx):
+        clear_treeview(tv)
+        if not states_data[0]:
+            return
+        state = states_data[0][idx]
+        for item in state.get("items", []):
+            body = item["body"]
+            dot  = item["dot"]
+            body_str = " ".join(body[:dot]) + " . " + " ".join(body[dot:])
+            la = "{ " + ", ".join(item["lookahead"]) + " }"
+            tv.insert("", "end", values=(item["head"], body_str.strip(), dot, la))
 
+    def on_select(event):
+        sel = state_lb.curselection()
+        if sel:
+            show_state(sel[0])
+
+    state_lb.bind("<<ListboxSelect>>", on_select)
+
+    frame._refresh = refresh
+    return frame
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LR TABLE TAB
+# ─────────────────────────────────────────────────────────────────────────────
+def build_lr_table_tab(parent):
+    frame = tk.Frame(parent, bg=BG)
+    frame.pack(fill="both", expand=True)
+
+    tk.Label(frame, text="LR(1) Parse Table", bg=BG,
+             font=TITLE_F, fg=ACCENT2, anchor="w").pack(fill="x", padx=10, pady=(8, 2))
+
+    container = tk.Frame(frame, bg=PANEL, relief="solid", bd=1,
+                         highlightthickness=1, highlightbackground=BORDER)
+    container.pack(fill="both", expand=True, padx=8, pady=6)
+
+    tv_frame = tk.Frame(container, bg=PANEL)
+    tv_frame.pack(fill="both", expand=True, padx=4, pady=4)
+
+    # will be rebuilt on refresh
+    tv_holder = [None]
+    hsb_holder = [None]
+    vsb_holder = [None]
+
+    def refresh():
+        data = load_json("lr1_table.json")
+        if not data:
+            return
+        states = data.get("states", [])
+
+        # collect all symbols
+        action_syms = set()
+        goto_syms   = set()
+        for s in states:
+            action_syms.update(s.get("action", {}).keys())
+            goto_syms.update(s.get("goto", {}).keys())
+
+        # sort: terminals first ($last), then non-terminals
+        def sort_key(sym):
+            if sym == "$": return (1, sym)
+            return (0, sym)
+        action_syms = sorted(action_syms, key=sort_key)
+        goto_syms   = sorted(goto_syms)
+
+        all_cols = ["state"] + action_syms + goto_syms
+        all_heads = ["State"] + action_syms + goto_syms
+
+        # destroy old
+        for w in tv_frame.winfo_children():
+            w.destroy()
+
+        tv = ttk.Treeview(tv_frame, columns=all_cols, show="headings",
+                          selectmode="browse")
+        vsb = ttk.Scrollbar(tv_frame, orient="vertical", command=tv.yview)
+        hsb = ttk.Scrollbar(tv_frame, orient="horizontal", command=tv.xview)
+        tv.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        tv.heading("state", text="State", anchor="center")
+        tv.column("state", width=55, anchor="center")
+        for sym in action_syms:
+            tv.heading(sym, text=sym, anchor="center")
+            tv.column(sym, width=58, anchor="center")
+        for sym in goto_syms:
+            tv.heading(sym, text=sym, anchor="center")
+            tv.column(sym, width=58, anchor="center")
+
+        # section header rows via tags
+        tv.tag_configure("action_hdr", background="#dce8f5", foreground=ACCENT2,
+                         font=SANS_B)
+        tv.tag_configure("acc_row",  background="#d4edda", foreground=GREEN)
+        tv.tag_configure("err_row",  background="#fdecea", foreground=RED)
+        tv.tag_configure("even",     background="#fafaf8")
+        tv.tag_configure("odd",      background=PANEL)
+
+        for idx, s in enumerate(states):
+            row = [str(s["id"])]
+            has_acc = False
+            for sym in action_syms:
+                val = s.get("action", {}).get(sym, "")
+                if val == "acc":
+                    has_acc = True
+                row.append(val)
+            for sym in goto_syms:
+                row.append(str(s.get("goto", {}).get(sym, "")))
+            tag = "acc_row" if has_acc else ("even" if idx % 2 == 0 else "odd")
+            tv.insert("", "end", values=row, tags=(tag,))
+
+        vsb.pack(side="right", fill="y")
+        hsb.pack(side="bottom", fill="x")
+        tv.pack(fill="both", expand=True)
+
+    frame._refresh = refresh
+    return frame
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TRACE TABLE TAB
+# ─────────────────────────────────────────────────────────────────────────────
+def build_trace_tab(parent):
+    frame = tk.Frame(parent, bg=BG)
+    frame.pack(fill="both", expand=True)
+
+    tk.Label(frame, text="Parse Trace", bg=BG,
+             font=TITLE_F, fg=ACCENT2, anchor="w").pack(fill="x", padx=10, pady=(8, 2))
+
+    container = tk.Frame(frame, bg=PANEL, relief="solid", bd=1,
+                         highlightthickness=1, highlightbackground=BORDER)
+    container.pack(fill="both", expand=True, padx=8, pady=6)
+
+    cols   = ("step", "stack", "input", "action")
+    heads  = ("Step", "Stack", "Input", "Action")
+    widths = (45, 220, 200, 80)
+
+    tv_frame = tk.Frame(container, bg=PANEL)
+    tv_frame.pack(fill="both", expand=True, padx=4, pady=4)
+
+    tv  = ttk.Treeview(tv_frame, columns=cols, show="headings", selectmode="browse")
+    vsb = ttk.Scrollbar(tv_frame, orient="vertical", command=tv.yview)
+    tv.configure(yscrollcommand=vsb.set)
+    style_treeview(tv, cols, heads, widths)
+
+    tv.tag_configure("acc",  background="#d4edda", foreground=GREEN, font=SANS_B)
+    tv.tag_configure("err",  background="#fdecea", foreground=RED,   font=SANS_B)
+    tv.tag_configure("even", background="#fafaf8")
+    tv.tag_configure("odd",  background=PANEL)
+
+    vsb.pack(side="right", fill="y")
+    tv.pack(fill="both", expand=True)
+
+    def refresh():
+        clear_treeview(tv)
+        data = load_json("trace_table.json")
+        if not data:
+            return
+        for i, row in enumerate(data.get("trace", [])):
+            act = row.get("action", "")
+            if act == "acc":
+                tag = "acc"
+            elif act == "ERROR":
+                tag = "err"
+            else:
+                tag = "even" if i % 2 == 0 else "odd"
+            tv.insert("", "end", values=(
+                row.get("step", ""),
+                row.get("stack", ""),
+                row.get("input", ""),
+                act
+            ), tags=(tag,))
+
+    frame._refresh = refresh
+    return frame
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARSE TREE TAB
+# ─────────────────────────────────────────────────────────────────────────────
+def build_tree_tab(parent):
+    frame = tk.Frame(parent, bg=BG)
+    frame.pack(fill="both", expand=True)
+
+    tk.Label(frame, text="Parse Tree", bg=BG,
+             font=TITLE_F, fg=ACCENT2, anchor="w").pack(fill="x", padx=10, pady=(8, 2))
+
+    container = tk.Frame(frame, bg=PANEL, relief="solid", bd=1,
+                         highlightthickness=1, highlightbackground=BORDER)
+    container.pack(fill="both", expand=True, padx=8, pady=6)
+
+    canvas = tk.Canvas(container, bg=PANEL, highlightthickness=0)
+    hsb = ttk.Scrollbar(container, orient="horizontal", command=canvas.xview)
+    vsb = ttk.Scrollbar(container, orient="vertical",   command=canvas.yview)
+    canvas.configure(xscrollcommand=hsb.set, yscrollcommand=vsb.set)
+
+    vsb.pack(side="right", fill="y")
+    hsb.pack(side="bottom", fill="x")
+    canvas.pack(fill="both", expand=True)
+
+    legend = tk.Frame(container, bg=PANEL)
+    legend.place(relx=0.0, rely=0.0, x=6, y=4)
+    tk.Label(legend, text="  Non-terminal ", bg=PANEL, fg=ACCENT,
+             font=MONO_SM, relief="solid", bd=1, padx=2).pack(side="left")
+    tk.Label(legend, text="  ", bg=PANEL, width=1).pack(side="left")
+    tk.Label(legend, text="  Terminal ", bg="#e8f4e8", fg=GREEN,
+             font=MONO_SM, relief="solid", bd=1, padx=2).pack(side="left")
+
+    def refresh():
+        data = load_json("parse_tree.json")
+        render_tree_canvas(canvas, data)
+
+    frame._refresh = refresh
+    return frame
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN WINDOW
+# ─────────────────────────────────────────────────────────────────────────────
+class LR1App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("LR(1) Parser Visualizer")
+        self.configure(bg=BG)
+        self.geometry("1100x700")
+        self.minsize(800, 500)
+
+        self._build_ui()
+        self._apply_styles()
+        self._load_existing_data()
+
+    def _apply_styles(self):
+        style = ttk.Style(self)
+        style.theme_use("clam")
+
+        style.configure("Treeview",
+                        background=PANEL, foreground=TEXT,
+                        rowheight=22, fieldbackground=PANEL,
+                        font=MONO_SM, borderwidth=0)
+        style.configure("Treeview.Heading",
+                        background="#e8e8e0", foreground=ACCENT2,
+                        font=SANS_B, relief="flat", padding=(4, 3))
+        style.map("Treeview",
+                  background=[("selected", ACCENT)],
+                  foreground=[("selected", "white")])
+        style.configure("TScrollbar", troughcolor=BG, background=BORDER,
+                        borderwidth=0, arrowsize=12)
+        style.configure("TNotebook", background=BG, borderwidth=0)
+        style.configure("TNotebook.Tab",
+                        background="#e0e0d8", foreground=TEXT_DIM,
+                        padding=(12, 5), font=SANS_SM)
+        style.map("TNotebook.Tab",
+                  background=[("selected", PANEL)],
+                  foreground=[("selected", ACCENT2)],
+                  expand=[("selected", [1, 1, 1, 0])])
+
+    def _build_ui(self):
+        # ── Top bar ──────────────────────────────────────────────────────────
+        top = tk.Frame(self, bg=ACCENT2, height=36)
+        top.pack(fill="x", side="top")
+        top.pack_propagate(False)
+        tk.Label(top, text="LR(1) Parser Visualizer", bg=ACCENT2,
+                 fg="white", font=("Helvetica", 12, "bold"),
+                 anchor="w", padx=12).pack(side="left", fill="y")
+
+        # ── Main horizontal split ─────────────────────────────────────────────
+        main = tk.Frame(self, bg=BG)
+        main.pack(fill="both", expand=True)
+
+        # LEFT panel: grammar + input + run
+        left_panel = tk.Frame(main, bg=PANEL, width=260,
+                              relief="solid", bd=0,
+                              highlightthickness=1, highlightbackground=BORDER)
+        left_panel.pack(side="left", fill="y", padx=(8, 0), pady=8)
+        left_panel.pack_propagate(False)
+
+        self._build_left(left_panel)
+
+        # RIGHT: notebook tabs
+        right_panel = tk.Frame(main, bg=BG)
+        right_panel.pack(side="left", fill="both", expand=True, padx=8, pady=8)
+
+        self.nb = ttk.Notebook(right_panel)
+        self.nb.pack(fill="both", expand=True)
+
+        self.tab_canonical = build_canonical_tab(self.nb)
+        self.tab_lrtable   = build_lr_table_tab(self.nb)
+        self.tab_trace     = build_trace_tab(self.nb)
+        self.tab_tree      = build_tree_tab(self.nb)
+
+        self.nb.add(self.tab_canonical, text="  Canonical Collection  ")
+        self.nb.add(self.tab_lrtable,   text="  LR Table  ")
+        self.nb.add(self.tab_trace,     text="  Trace  ")
+        self.nb.add(self.tab_tree,      text="  Parse Tree  ")
+
+        self.tabs = [self.tab_canonical, self.tab_lrtable,
+                     self.tab_trace, self.tab_tree]
+
+    def _build_left(self, parent):
+        pad = dict(padx=10, pady=(0, 4))
+
+        # Grammar section
+        tk.Label(parent, text="Grammar", bg=PANEL, font=SANS_B,
+                 fg=ACCENT2, anchor="w").pack(fill="x", padx=10, pady=(10, 2))
+        sep = tk.Frame(parent, bg=BORDER, height=1)
+        sep.pack(fill="x", padx=8, pady=(0, 4))
+
+        tk.Label(parent, text="Productions (one per line,  ->  separator):",
+                 bg=PANEL, font=SANS_SM, fg=TEXT_DIM, anchor="w",
+                 wraplength=230, justify="left").pack(fill="x", padx=10)
+
+        self.grammar_text = scrolledtext.ScrolledText(
+            parent, height=7, font=MONO, bg="#f9f9f6",
+            fg=TEXT, relief="solid", bd=1, insertbackground=ACCENT,
+            wrap="none")
+        self.grammar_text.pack(fill="x", padx=10, pady=(4, 8))
+        self.grammar_text.insert("1.0", GRAMMAR_DEFAULT)
+
+        # Input section
+        tk.Label(parent, text="Input", bg=PANEL, font=SANS_B,
+                 fg=ACCENT2, anchor="w").pack(fill="x", padx=10, pady=(2, 2))
+        sep2 = tk.Frame(parent, bg=BORDER, height=1)
+        sep2.pack(fill="x", padx=8, pady=(0, 4))
+
+        tk.Label(parent, text="Tokens (space-separated):",
+                 bg=PANEL, font=SANS_SM, fg=TEXT_DIM, anchor="w").pack(
+                 fill="x", padx=10)
+
+        self.input_var = tk.StringVar(value="( a )")
+        input_entry = tk.Entry(parent, textvariable=self.input_var,
+                               font=MONO, bg="#f9f9f6", fg=TEXT,
+                               relief="solid", bd=1, insertbackground=ACCENT)
+        input_entry.pack(fill="x", padx=10, pady=(4, 10))
+        input_entry.bind("<Return>", lambda e: self._run())
+
+        # Run button
+        run_btn = tk.Button(parent, text="PARSE", command=self._run,
+                            bg=ACCENT, fg="white", font=SANS_B,
+                            relief="flat", cursor="hand2",
+                            activebackground=ACCENT2, activeforeground="white",
+                            padx=8, pady=6)
+        run_btn.pack(fill="x", padx=10, pady=(0, 8))
+
+        # Status / log
+        tk.Label(parent, text="Log", bg=PANEL, font=SANS_B,
+                 fg=ACCENT2, anchor="w").pack(fill="x", padx=10, pady=(6, 2))
+        sep3 = tk.Frame(parent, bg=BORDER, height=1)
+        sep3.pack(fill="x", padx=8, pady=(0, 4))
+
+        self.log_text = scrolledtext.ScrolledText(
+            parent, height=10, font=MONO_SM, bg="#1a1a1a",
+            fg="#a8d8a8", relief="flat", bd=0, state="disabled",
+            insertbackground="white", wrap="word")
+        self.log_text.pack(fill="both", expand=True, padx=8, pady=(0, 10))
+
+        # result label
+        self.result_var = tk.StringVar(value="")
+        self.result_lbl = tk.Label(parent, textvariable=self.result_var,
+                                   bg=PANEL, font=SANS_B, anchor="center",
+                                   padx=6, pady=4)
+        self.result_lbl.pack(fill="x", padx=10, pady=(0, 8))
+
+    def _log(self, msg, clear=False):
+        self.log_text.config(state="normal")
+        if clear:
+            self.log_text.delete("1.0", "end")
+        self.log_text.insert("end", msg + "\n")
+        self.log_text.see("end")
+        self.log_text.config(state="disabled")
+
+    def _run(self):
+        grammar_raw = self.grammar_text.get("1.0", "end").strip()
+        if not grammar_raw:
+            messagebox.showerror("Error", "Grammar is empty.")
+            return
+
+        tokens = self.input_var.get().strip()
+        if not tokens:
+            messagebox.showerror("Error", "Input is empty.")
+            return
+
+        # write grammar
+        write_grammar(grammar_raw)
+        self._log(f"Grammar written to grammar.txt", clear=True)
+        self._log(f"Running: {EXE_NAME}")
+        self._log(f"Input: {tokens}")
+
+        self.result_var.set("")
+        self.result_lbl.config(bg=PANEL, fg=TEXT)
+        self.update_idletasks()
+
+        stdout, stderr, code = run_parser(tokens)
+
+        if stderr:
+            self._log(f"[stderr] {stderr.strip()}")
+        if stdout:
+            # show last few lines
+            lines = stdout.strip().splitlines()
+            for l in lines[-12:]:
+                self._log(l)
+
+        if code != 0 or "not found" in stderr.lower():
+            self._log("[ERROR] Execution failed.")
+            self.result_var.set("REJECTED")
+            self.result_lbl.config(bg="#fdecea", fg=RED)
+        else:
+            accepted = "accepted" in stdout.lower()
+            if accepted:
+                self.result_var.set("ACCEPTED")
+                self.result_lbl.config(bg="#d4edda", fg=GREEN)
+                self._log("[OK] Input accepted.")
+            else:
+                self.result_var.set("REJECTED")
+                self.result_lbl.config(bg="#fdecea", fg=RED)
+                self._log("[FAIL] Input rejected.")
+
+        # refresh all tabs
+        self._refresh_all()
+
+    def _refresh_all(self):
+        for tab in self.tabs:
+            if hasattr(tab, "_refresh"):
+                try:
+                    tab._refresh()
+                except Exception as e:
+                    self._log(f"[warn] refresh error: {e}")
+
+    def _load_existing_data(self):
+        """Load JSON files that may already exist from a previous run."""
+        self._refresh_all()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    main()
+    app = LR1App()
+    app.mainloop()

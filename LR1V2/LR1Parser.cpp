@@ -410,6 +410,52 @@ void LR1Parser::exportTraceToJSON(const string& filename) const {
 }
 
 
+void LR1Parser::exportParseTreeToJSON(const string& filename) const {
+    if (!parseTreeRoot) {
+        cerr << "No parse tree available to export.\n";
+        return;
+    }
+    
+    ofstream out(filename);
+    if (!out.is_open()) {
+        cerr << "Error: couldn't open " << filename << " for writing.\n";
+        return;
+    }
+    
+    out << "{\n  \"parseTree\": ";
+    exportTreeNodeToJSON(out, parseTreeRoot, 2);
+    out << "\n}\n";
+    out.close();
+    
+    cout << "Parse tree exported to " << filename << endl;
+}
+
+void LR1Parser::exportTreeNodeToJSON(ofstream& out, const TreeNode* node, int depth) const {
+    if (!node) {
+        out << "null";
+        return;
+    }
+    
+    string indent(depth, ' ');
+    string childIndent(depth + 2, ' ');
+    
+    out << "{\n";
+    out << childIndent << "\"symbol\": \"" << node->symbol << "\"";
+    
+    if (!node->children.empty()) {
+        out << ",\n" << childIndent << "\"children\": [\n";
+        for (size_t i = 0; i < node->children.size(); ++i) {
+            exportTreeNodeToJSON(out, node->children[i], depth + 4);
+            if (i != node->children.size() - 1) out << ",";
+            out << "\n";
+        }
+        out << childIndent << "]";
+    }
+    
+    out << "\n" << indent << "}";
+}
+
+
 //********************************************************************************************************************
 //PRIVATE ************************************************************************************************************
 //********************************************************************************************************************
@@ -543,6 +589,12 @@ vector<string> LR1Parser::tokenize(const string& input) {
 
 bool LR1Parser::parse(const string& input) {
     traceTable.clear();
+    if (parseTreeRoot) {
+        deleteTree(parseTreeRoot);
+        parseTreeRoot = nullptr;
+    }
+
+
 
     vector<string> tokens = tokenize(input);
     
@@ -616,7 +668,8 @@ bool LR1Parser::parse(const string& input) {
             cout << "\n=== Input accepted! ===\n";
             if (!nodeStack.empty()) {
                 cout << "\n=== PARSE TREE ===\n";
-                printParseTree(nodeStack.back());
+                parseTreeRoot = nodeStack.back();
+                printParseTree(parseTreeRoot);
             }
 
             traceTable.push_back(row);
@@ -699,6 +752,7 @@ bool LR1Parser::parse(const string& input) {
 void LR1Parser::printParseTrace(const string& input) {
     parse(input);
     exportTraceToJSON("trace_table.json");
+    exportParseTreeToJSON("parse_tree.json");
 }
 
 void LR1Parser::printParseTree(TreeNode* node, int depth) const {
