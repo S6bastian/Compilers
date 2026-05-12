@@ -30,6 +30,21 @@ struct LR1Item {
     }
 };
 
+
+struct TreeNode {
+    string symbol;
+    vector<TreeNode*> children;
+    
+    TreeNode(const string& sym) : symbol(sym) {}
+    
+    ~TreeNode() {
+        for (TreeNode* child : children) {
+            delete child;
+        }
+    }
+};
+
+
 typedef vector<LR1Item> State;
 
 class LR1Parser {
@@ -41,6 +56,11 @@ public:
     void buildTable();
     void printTable() const;
 
+    bool parse(const string& input);
+    void printParseTrace(const string& input);
+    void printParseTree(TreeNode* node, int depth = 0) const;
+    void deleteTree(TreeNode* node);
+
 private:
     Grammar *grammar;
     
@@ -49,7 +69,9 @@ private:
     map<int, map<string, string>> actionTable;  // actionTable[state][symbol] = "sX" o "rX" o "acc"
     map<int, map<string, int>> gotoTable;       // gotoTable[state][nonTerminal] = nextState
 
+    set<string> computeLookahead(LR1Item item);
     vector<LR1Item> closure(vector<LR1Item> kernels);
     State goTo(const State& state, const string& symbol);
-    set<string> computeLookahead(LR1Item item);
+
+    vector<string> tokenize(const string& input);
 };

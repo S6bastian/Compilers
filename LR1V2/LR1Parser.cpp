@@ -1,5 +1,10 @@
 #include "LR1Parser.h"
 
+//********************************************************************************************************************
+//OVERLOAD ********************************************************************************************************
+//********************************************************************************************************************
+
+
 bool operator==(const State& a, const State& b) {
     if (a.size() != b.size()) return false;
     
@@ -15,6 +20,9 @@ bool operator==(const State& a, const State& b) {
 }
 
 
+//********************************************************************************************************************
+//CONSTRUCTOR ********************************************************************************************************
+//********************************************************************************************************************
 
 LR1Parser::LR1Parser(Grammar *g) {
     grammar = g;
@@ -23,27 +31,30 @@ LR1Parser::LR1Parser(Grammar *g) {
 }
 
 
+
+
+//********************************************************************************************************************
+//PUBLIC *************************************************************************************************************
+//********************************************************************************************************************
+
+
+
 void LR1Parser::buildStates() {
     states.clear();
     transitions.clear();
     
-    // Crear el item inicial de la gramática aumentada
     LR1Item startItem;
     startItem.head = grammar->getStartSymbol();
     startItem.body = grammar->getProductions()[0].second;
     startItem.dot = 0;
     startItem.lookahead = {"$"};
     
-    // Estado inicial = closure del item inicial
     states.push_back(closure({startItem}));
     
     cout << "Building LR(1) states...\n";
     
-    // Construir el resto de estados
     for (size_t i = 0; i < states.size(); ++i) {
         State currentState = states[i];
-        // cout << "i:    " << i << "\n";
-        // Recopilar todos los símbolos que aparecen después del punto
         set<string> symbols;
         for (const auto& item : currentState) {
             if(item.body[0] == grammar->getEmptySymbol()) continue;
@@ -52,20 +63,12 @@ void LR1Parser::buildStates() {
             }
         }
 
-        // for(auto& symbol : symbols){
-        //     cout << symbol << " ";
-        // }
-        // cout << "\n";
-        
-        // Para cada símbolo, calcular el estado goto
         for (const string& symbol : symbols) {
             State nextState = goTo(currentState, symbol);
             
-            // cout << "GOTO USED\n";
 
             if (nextState.empty()) continue;
             
-            // Verificar si este estado ya existe
             int existingStateIndex = -1;
             for (size_t j = 0; j < states.size(); ++j) {
                 if (states[j].size() == nextState.size()) {
@@ -82,21 +85,14 @@ void LR1Parser::buildStates() {
                     }
                 }
             }
-            // cout << "VERIFICATION DONE\n";
-            // Agregar nuevo estado si no existe
+            
             if (existingStateIndex == -1) {
                 states.push_back(nextState);
                 transitions[i][symbol] = states.size() - 1;
-                // cout << "  Created new state " << states.size() - 1 
-                //      << " from state " << i << " with symbol '" << symbol << "'\n";
-            } else {
-                transitions[i][symbol] = existingStateIndex;
-                // cout << "  Transition from state " << i << " to existing state " 
-                //      << existingStateIndex << " with symbol '" << symbol << "'\n";
             }
-            // cout << "****************************************\n";
-            // printStates();
-            // cout << "****************************************\n";
+            else {
+                transitions[i][symbol] = existingStateIndex;
+            }
         }
     }
     
@@ -113,14 +109,12 @@ void LR1Parser::printStates() const {
         for (const auto& item : states[i]) {
             cout << "  " << item.head << " -> ";
             
-            // Imprimir el cuerpo con el punto
             for (size_t j = 0; j < item.body.size(); ++j) {
                 if (j == (size_t)item.dot) cout << ". ";
                 cout << item.body[j] << " ";
             }
             if (item.dot == (int)item.body.size()) cout << ".";
             
-            // Imprimir lookaheads
             cout << ", { ";
             for (auto it = item.lookahead.begin(); it != item.lookahead.end(); ++it) {
                 cout << *it;
@@ -148,33 +142,26 @@ void LR1Parser::buildTable() {
     for (size_t i = 0; i < states.size(); ++i) {
         const State& state = states[i];
         
-        // 1. Procesar transiciones (SHIFT y GOTO)
         if (transitions.find(i) != transitions.end()) {
             for (const auto& [symbol, target] : transitions.at(i)) {
-                if (grammar->isTerminal(symbol)) {
-                    // Es un shift
+                if (grammar->isTerminal(symbol)) { //shift
                     actionTable[i][symbol] = "s" + to_string(target);
-                } else {
-                    // Es un goto
+                } else {    //goto
                     gotoTable[i][symbol] = target;
                 }
             }
         }
         
-        // 2. Procesar reducciones
-        for (const LR1Item& item : state) {
+        for (const LR1Item& item : state) { //reduction
             if (item.dot == (int)item.body.size() || item.body[0] == grammar->getEmptySymbol()) {
-                // Es un item de reducción
-                
-                // Caso especial: aceptación
-                if (item.head == grammar->getStartSymbol() &&
+
+                if (item.head == grammar->getStartSymbol() &&   //acc
                     item.body.size() == 1 && 
                     item.lookahead.count("$")) {
                     actionTable[i]["$"] = "acc";
                     continue;
                 }
                 
-                // Buscar el número de producción
                 int prodIndex = -1;
                 const auto& productions = grammar->getProductions();
                 for (size_t p = 0; p < productions.size(); ++p) {
@@ -190,14 +177,12 @@ void LR1Parser::buildTable() {
                     continue;
                 }
                 
-                // Agregar reducción para cada lookahead
-                for (const string& la : item.lookahead) {
-                    if (actionTable[i].find(la) != actionTable[i].end()){
-                        // Conflicto!
+                for (const string& la : item.lookahead) { //apply reduction to lookaheads
+                    if (actionTable[i].find(la) != actionTable[i].end()){   // conflict
                         cout << "  Conflict in state " << i << " on symbol '" << la 
                              << "': " << actionTable[i][la] << " vs r" << prodIndex << "\n";
                     }
-                    else {
+                    else{
                         actionTable[i][la] = "r" + to_string(prodIndex);
                     }
                 }
@@ -215,7 +200,6 @@ void LR1Parser::printTable() const {
         return;
     }
     
-    // Recopilar todos los símbolos
     set<string> terminals;
     set<string> nonTerminals;
     
@@ -235,12 +219,11 @@ void LR1Parser::printTable() const {
         }
     }
     
-    // Asegurar que $ esté en terminals
     terminals.insert("$");
     
     cout << "\n=== LR(1) PARSE TABLE ===\n\n";
     
-    // Imprimir encabezado
+    // header
     cout << setw(6) << "State";
     for (const string& t : terminals) {
         cout << setw(8) << t;
@@ -252,11 +235,11 @@ void LR1Parser::printTable() const {
     
     cout << string(6 + 8 * (terminals.size() + nonTerminals.size()), '-') << "\n";
     
-    // Imprimir cada estado
+    // state x state
     for (size_t i = 0; i < states.size(); ++i) {
         cout << setw(6) << i;
         
-        // ACTION
+        // action
         if (actionTable.find(i) != actionTable.end()) {
             for (const string& t : terminals) {
                 auto it = actionTable.at(i).find(t);
@@ -272,7 +255,7 @@ void LR1Parser::printTable() const {
             }
         }
         
-        // GOTO
+        // goto
         if (gotoTable.find(i) != gotoTable.end()) {
             for (const string& nt : nonTerminals) {
                 auto it = gotoTable.at(i).find(nt);
@@ -306,6 +289,12 @@ void LR1Parser::printTable() const {
     }
 }
 
+
+
+
+//********************************************************************************************************************
+//PRIVATE ************************************************************************************************************
+//********************************************************************************************************************
 
 
 set<string> LR1Parser::computeLookahead(LR1Item item){
@@ -360,8 +349,7 @@ State LR1Parser::closure(vector<LR1Item> kernels) {
         
         if (existingIndex == -1) {
             state.push_back(current);
-            
-            // Solo generamos nuevos items si este es realmente nuevo
+
             if (current.dot < (int)current.body.size()) {
                 string nextSymbol = current.body[current.dot];
                 
@@ -386,15 +374,13 @@ State LR1Parser::closure(vector<LR1Item> kernels) {
                 }
             }
         } else {
-            // Unir lookaheads
+
             size_t oldSize = state[existingIndex].lookahead.size();
             state[existingIndex].lookahead.insert(current.lookahead.begin(), current.lookahead.end());
             
-            // Si crecieron los lookaheads, regenerar pendientes para este item
             if (state[existingIndex].lookahead.size() > oldSize && 
                 state[existingIndex].dot < (int)state[existingIndex].body.size()) {
-                // Re-procesar este item con los nuevos lookaheads
-                
+
                 pending.push_back(state[existingIndex]);
             }
         }
@@ -407,19 +393,205 @@ State LR1Parser::closure(vector<LR1Item> kernels) {
 State LR1Parser::goTo(const State& state, const string& symbol) {
     vector<LR1Item> kernels;
     
-    // Buscar todos los items donde el símbolo después del punto es 'symbol'
     for (const auto& item : state) {
         if (item.dot < (int)item.body.size() && item.body[item.dot] == symbol) {
             LR1Item newItem = item;
-            newItem.dot++;  // Avanzar el punto
+            newItem.dot++;  
             kernels.push_back(newItem);
         }
     }
     
     if (kernels.empty()) {
-        return State();  // Estado vacío
+        return State();  
     }
     
-    // Aplicar closure a los kernels
     return closure(kernels);
+}
+
+
+
+
+// Al final de LR1Parser.cpp, agrega:
+
+vector<string> LR1Parser::tokenize(const string& input) {
+    vector<string> tokens;
+    istringstream iss(input);
+    string token;
+    while (iss >> token) {
+        tokens.push_back(token);
+    }
+    tokens.push_back("$"); // Agregar EOF
+    return tokens;
+}
+
+bool LR1Parser::parse(const string& input) {
+    vector<string> tokens = tokenize(input);
+    
+    vector<int> stateStack;
+    vector<TreeNode*> nodeStack;
+    
+    stateStack.push_back(0);
+    size_t inputPos = 0;
+    int stepCount = 0;
+    const int MAX_STEPS = 100;
+    
+    cout << "\n=== PARSING TRACE ===\n";
+    cout << left << setw(6) << "Step" 
+         << setw(30) << "Stack" 
+         << setw(25) << "Input" 
+         << setw(10) << "Action" << "\n";
+    cout << string(71, '-') << "\n";
+    
+    while (stepCount < MAX_STEPS) {
+        stepCount++;
+        
+        int currentState = stateStack.back();
+        string currentToken = tokens[inputPos];
+        
+        // Construir representación de la pila
+        string stackStr = "";
+        for (size_t i = 0; i < stateStack.size(); i++) {
+            if (i > 0) stackStr += " ";
+            stackStr += to_string(stateStack[i]);
+            if (i < nodeStack.size() && nodeStack[i] != nullptr) {
+                stackStr += " " + nodeStack[i]->symbol;
+            }
+        }
+        
+        // Construir representación del input restante
+        string inputStr = "";
+        for (size_t i = inputPos; i < tokens.size(); i++) {
+            if (i > inputPos) inputStr += " ";
+            inputStr += tokens[i];
+        }
+        
+        // Imprimir paso actual
+        cout << left << setw(6) << stepCount
+             << setw(30) << stackStr
+             << setw(25) << inputStr;
+        
+        // Buscar acción en la tabla
+        if (actionTable.find(currentState) == actionTable.end() || 
+            actionTable[currentState].find(currentToken) == actionTable[currentState].end()) {
+            cout << setw(10) << "ERROR" << "\n";
+            cout << "Error: No action for state " << currentState << " and token '" << currentToken << "'\n";
+            return false;
+        }
+        
+        string action = actionTable[currentState][currentToken];
+        cout << setw(10) << action;
+        
+        if (action == "acc") {
+            cout << "\n=== Input accepted! ===\n";
+            if (!nodeStack.empty()) {
+                cout << "\n=== PARSE TREE ===\n";
+                printParseTree(nodeStack.back());
+            }
+            return true;
+        }
+        else if (action[0] == 's') {
+            // Shift
+            int nextState = stoi(action.substr(1));
+            
+            // Crear nodo hoja para el terminal
+            TreeNode* leaf = new TreeNode(currentToken);
+            nodeStack.push_back(leaf);
+            stateStack.push_back(nextState);
+            
+            // Consumir token
+            inputPos++;
+            
+            cout << "  (Shift to state " << nextState << ")\n";
+        }
+        else if (action[0] == 'r') {
+            // Reduce
+            int prodIndex = stoi(action.substr(1));
+            const auto& productions = grammar->getProductions();
+            const auto& [head, body] = productions[prodIndex];
+            
+            TreeNode* newNode = new TreeNode(head);
+            
+            // Pop estados y nodos según el tamaño del cuerpo
+            int popCount = body.size();
+            if (body.size() == 1 && body[0] == grammar->getEmptySymbol()) {
+                // Producción epsilon
+                popCount = 0;
+                TreeNode* epsilonNode = new TreeNode(grammar->getEmptySymbol());
+                newNode->children.push_back(epsilonNode);
+            } else {
+                // Insertar hijos en orden inverso
+                for (int i = popCount - 1; i >= 0; i--) {
+                    if (!nodeStack.empty()) {
+                        newNode->children.insert(newNode->children.begin(), nodeStack.back());
+                        nodeStack.pop_back();
+                    }
+                    if (!stateStack.empty()) {
+                        stateStack.pop_back();
+                    }
+                }
+            }
+            
+            nodeStack.push_back(newNode);
+            
+            // Calcular nuevo estado (GOTO)
+            int topState = stateStack.back();
+            if (gotoTable.find(topState) == gotoTable.end() || 
+                gotoTable[topState].find(head) == gotoTable[topState].end()) {
+                cout << "Error: No goto for state " << topState << " and non-terminal '" << head << "'\n";
+                return false;
+            }
+            
+            int nextState = gotoTable[topState][head];
+            stateStack.push_back(nextState);
+            
+            cout << "  (Reduce by " << head << " -> ";
+            if (body.empty() || (body.size() == 1 && body[0] == grammar->getEmptySymbol())) {
+                cout << grammar->getEmptySymbol();
+            } else {
+                for (const string& s : body) cout << s << " ";
+            }
+            cout << ", goto " << nextState << ")\n";
+        }
+    }
+    
+    cout << "Error: Maximum steps exceeded\n";
+    return false;
+}
+
+void LR1Parser::printParseTrace(const string& input) {
+    parse(input);
+}
+
+void LR1Parser::printParseTree(TreeNode* node, int depth) const {
+    if (!node) return;
+    
+    // Indentación
+    for (int i = 0; i < depth; i++) {
+        cout << "  ";
+    }
+    
+    cout << node->symbol;
+    
+    if (!node->children.empty()) {
+        cout << " ->";
+        for (TreeNode* child : node->children) {
+            cout << " " << child->symbol;
+        }
+        cout << "\n";
+        
+        for (TreeNode* child : node->children) {
+            printParseTree(child, depth + 1);
+        }
+    } else {
+        cout << "\n";
+    }
+}
+
+void LR1Parser::deleteTree(TreeNode* node) {
+    if (node) {
+        for (TreeNode* child : node->children) {
+            deleteTree(child);
+        }
+        delete node;
+    }
 }
