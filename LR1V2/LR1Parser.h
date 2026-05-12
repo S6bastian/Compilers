@@ -56,10 +56,17 @@ public:
     void buildTable();
     void printTable() const;
 
-    bool parse(const string& input);
+
+    // Parsing methods
+    bool parse(const string& input, bool panicMode = true);
     void printParseTrace(const string& input);
     void printParseTree(TreeNode* node, int depth = 0) const;
     void deleteTree(TreeNode* node);
+
+    // Panic Mode methods
+    void setPanicMode(bool enable) { usePanicMode = enable; }
+    void setMaxErrors(int max) { maxErrors = max; }
+    int getErrorCount() const { return errorCount; }
 
 private:
     Grammar *grammar;
@@ -69,9 +76,34 @@ private:
     map<int, map<string, string>> actionTable;  // actionTable[state][symbol] = "sX" o "rX" o "acc"
     map<int, map<string, int>> gotoTable;       // gotoTable[state][nonTerminal] = nextState
 
+    // Panic Mode atributes
+    bool usePanicMode;
+    int maxErrors;
+    int errorCount;
+    set<string> syncTokens;
+    map<int, set<string>> stateSyncTokens;
+
+
+
+
     set<string> computeLookahead(LR1Item item);
     vector<LR1Item> closure(vector<LR1Item> kernels);
     State goTo(const State& state, const string& symbol);
 
+    // Parsing method
     vector<string> tokenize(const string& input);
+    
+    // Panic Mode method
+    void computeSyncTokens();
+    set<string> getFollowSet(const string& nonTerminal);
+    bool isSyncToken(int state, const string& token);
+    void panicModeRecovery(vector<int>& stateStack, 
+                          vector<TreeNode*>& nodeStack,
+                          vector<string>& tokens, 
+                          size_t& inputPos);
+    void phraseLevelRecovery(vector<int>& stateStack,
+                            vector<TreeNode*>& nodeStack,
+                            vector<string>& tokens,
+                            size_t& inputPos);
+
 };

@@ -26,8 +26,12 @@ bool operator==(const State& a, const State& b) {
 
 LR1Parser::LR1Parser(Grammar *g) {
     grammar = g;
+    usePanicMode = true;
+    maxErrors = 10;
+    errorCount = 0;
     buildStates();
     buildTable();
+    computeSyncTokens();
 }
 
 
@@ -57,7 +61,7 @@ void LR1Parser::buildStates() {
         State currentState = states[i];
         set<string> symbols;
         for (const auto& item : currentState) {
-            if(item.body[0] == grammar->getEmptySymbol()) continue;
+            if(!item.body.empty() && item.body[0] == grammar->getEmptySymbol()) continue;
             if (item.dot < (int)item.body.size()) {
                 symbols.insert(item.body[item.dot]);
             }
@@ -71,18 +75,9 @@ void LR1Parser::buildStates() {
             
             int existingStateIndex = -1;
             for (size_t j = 0; j < states.size(); ++j) {
-                if (states[j].size() == nextState.size()) {
-                    bool isEqual = true;
-                    for (size_t k = 0; k < states[j].size(); ++k) {
-                        if (!(states[j][k] == nextState[k])) {
-                            isEqual = false;
-                            break;
-                        }
-                    }
-                    if (isEqual) {
-                        existingStateIndex = j;
-                        break;
-                    }
+                if (states[j] == nextState) {
+                    existingStateIndex = j;
+                    break;
                 }
             }
             
@@ -424,7 +419,8 @@ vector<string> LR1Parser::tokenize(const string& input) {
     return tokens;
 }
 
-bool LR1Parser::parse(const string& input) {
+// Función parse actualizada con recuperación de errores
+bool LR1Parser::parse(const string& input, bool panicMode) {
     vector<string> tokens = tokenize(input);
     
     vector<int> stateStack;
@@ -433,75 +429,111 @@ bool LR1Parser::parse(const string& input) {
     stateStack.push_back(0);
     size_t inputPos = 0;
     int stepCount = 0;
-    const int MAX_STEPS = 100;
+    const int MAX_STEPS = 200;
+    errorCount = 0;
+    bool inputAccepted = false;
     
-    cout << "\n=== PARSING TRACE ===\n";
+    cout << "\n=== PARSING TRACE";
+    if (usePanicMode) cout << " (Panic Mode Recovery Enabled)";
+    cout << " ===\n";
     cout << left << setw(6) << "Step" 
-         << setw(30) << "Stack" 
+         << setw(35) << "Stack" 
          << setw(25) << "Input" 
-         << setw(10) << "Action" << "\n";
-    cout << string(71, '-') << "\n";
+         << setw(12) << "Action" << "\n";
+    cout << string(78, '-') << "\n";
     
-    while (stepCount < MAX_STEPS) {
+    while (stepCount < MAX_STEPS && inputPos < tokens.size()) {
         stepCount++;
         
-        int currentState = stateStack.back();
-        string currentToken = tokens[inputPos];
+        int currentState = stateStack.empty() ? 0 : stateStack.back();
+        string currentToken = inputPos < tokens.size() ? tokens[inputPos] : "$";
         
         // Construir representación de la pila
-        string stackStr = "";
+        stringstream stackSS;
         for (size_t i = 0; i < stateStack.size(); i++) {
-            if (i > 0) stackStr += " ";
-            stackStr += to_string(stateStack[i]);
-            if (i < nodeStack.size() && nodeStack[i] != nullptr) {
-                stackStr += " " + nodeStack[i]->symbol;
+            if (i > 0) stackSS << " ";
+            stackSS << stateStack[i];
+            if (i < nodeStack.size()) {
+                stackSS << " " << nodeStack[i]->symbol;
             }
+        }
+        string stackStr = stackSS.str();
+        if (stackStr.length() > 34) {
+            stackStr = "..." + stackStr.substr(stackStr.length() - 31);
         }
         
         // Construir representación del input restante
-        string inputStr = "";
-        for (size_t i = inputPos; i < tokens.size(); i++) {
-            if (i > inputPos) inputStr += " ";
-            inputStr += tokens[i];
+        stringstream inputSS;
+        for (size_t i = inputPos; i < tokens.size() && i < inputPos + 10; i++) {
+            if (i > inputPos) inputSS << " ";
+            inputSS << tokens[i];
         }
+        if (inputPos + 10 < tokens.size()) inputSS << " ...";
+        string inputStr = inputSS.str();
         
         // Imprimir paso actual
         cout << left << setw(6) << stepCount
-             << setw(30) << stackStr
+             << setw(35) << stackStr
              << setw(25) << inputStr;
         
-        // Buscar acción en la tabla
+        // Verificar si hay acción definida
         if (actionTable.find(currentState) == actionTable.end() || 
             actionTable[currentState].find(currentToken) == actionTable[currentState].end()) {
-            cout << setw(10) << "ERROR" << "\n";
-            cout << "Error: No action for state " << currentState << " and token '" << currentToken << "'\n";
-            return false;
+            
+            cout << setw(12) << "ERROR" << "\n";
+            errorCount++;
+            
+            if (!usePanicMode || errorCount > maxErrors) {
+                cout << "Error: No action for state " << currentState 
+                     << " and token '" << currentToken << "'\n";
+                if (errorCount > maxErrors) {
+                    cout << "Maximum error count (" << maxErrors << ") exceeded. Stopping.\n";
+                }
+                
+                // Limpiar memoria
+                for (TreeNode* node : nodeStack) {
+                    deleteTree(node);
+                }
+                return false;
+            }
+            
+            // Intentar recuperación de errores
+            cout << "  [ERROR " << errorCount << "] No action in state " 
+                 << currentState << " for token '" << currentToken << "'\n";
+            
+            // Primero intentar recuperación a nivel de frase
+            phraseLevelRecovery(stateStack, nodeStack, tokens, inputPos);
+            
+            continue;
         }
         
         string action = actionTable[currentState][currentToken];
-        cout << setw(10) << action;
+        cout << setw(12) << action;
         
         if (action == "acc") {
             cout << "\n=== Input accepted! ===\n";
+            if (errorCount > 0) {
+                cout << "Note: " << errorCount << " error(s) were recovered\n";
+            }
             if (!nodeStack.empty()) {
                 cout << "\n=== PARSE TREE ===\n";
                 printParseTree(nodeStack.back());
+                deleteTree(nodeStack.back());
             }
-            return true;
+            inputAccepted = true;
+            break;
         }
         else if (action[0] == 's') {
             // Shift
             int nextState = stoi(action.substr(1));
             
-            // Crear nodo hoja para el terminal
             TreeNode* leaf = new TreeNode(currentToken);
             nodeStack.push_back(leaf);
             stateStack.push_back(nextState);
             
-            // Consumir token
             inputPos++;
             
-            cout << "  (Shift to state " << nextState << ")\n";
+            cout << "  (Shift to " << nextState << ")\n";
         }
         else if (action[0] == 'r') {
             // Reduce
@@ -514,12 +546,10 @@ bool LR1Parser::parse(const string& input) {
             // Pop estados y nodos según el tamaño del cuerpo
             int popCount = body.size();
             if (body.size() == 1 && body[0] == grammar->getEmptySymbol()) {
-                // Producción epsilon
                 popCount = 0;
                 TreeNode* epsilonNode = new TreeNode(grammar->getEmptySymbol());
                 newNode->children.push_back(epsilonNode);
             } else {
-                // Insertar hijos en orden inverso
                 for (int i = popCount - 1; i >= 0; i--) {
                     if (!nodeStack.empty()) {
                         newNode->children.insert(newNode->children.begin(), nodeStack.back());
@@ -537,7 +567,13 @@ bool LR1Parser::parse(const string& input) {
             int topState = stateStack.back();
             if (gotoTable.find(topState) == gotoTable.end() || 
                 gotoTable[topState].find(head) == gotoTable[topState].end()) {
-                cout << "Error: No goto for state " << topState << " and non-terminal '" << head << "'\n";
+                cout << "Error: No goto for state " << topState 
+                     << " and non-terminal '" << head << "'\n";
+                
+                // Limpiar memoria
+                for (TreeNode* node : nodeStack) {
+                    deleteTree(node);
+                }
                 return false;
             }
             
@@ -554,8 +590,20 @@ bool LR1Parser::parse(const string& input) {
         }
     }
     
-    cout << "Error: Maximum steps exceeded\n";
-    return false;
+    if (!inputAccepted) {
+        cout << "Error: Parsing incomplete or maximum steps exceeded\n";
+        if (errorCount > 0) {
+            cout << "Total errors encountered: " << errorCount << "\n";
+        }
+        
+        // Limpiar memoria
+        for (TreeNode* node : nodeStack) {
+            deleteTree(node);
+        }
+        return false;
+    }
+    
+    return true;
 }
 
 void LR1Parser::printParseTrace(const string& input) {
@@ -594,4 +642,211 @@ void LR1Parser::deleteTree(TreeNode* node) {
         }
         delete node;
     }
+}
+
+
+
+
+set<string> LR1Parser::getFollowSet(const string& nonTerminal) {
+    set<string> followSet;
+    
+    // Buscar en todos los estados los lookaheads de reducción para este no terminal
+    for (const auto& state : states) {
+        for (const auto& item : state) {
+            if (item.head == nonTerminal && item.dot == (int)item.body.size()) {
+                followSet.insert(item.lookahead.begin(), item.lookahead.end());
+            }
+        }
+    }
+    
+    return followSet;
+}
+
+
+// Calcula los tokens de sincronización para cada estado
+void LR1Parser::computeSyncTokens() {
+    syncTokens.clear();
+    stateSyncTokens.clear();
+    
+    // 1. Agregar FOLLOW de todos los no terminales como tokens de sincronización
+    const auto& nonTerminals = grammar->getProductions();
+    set<string> allNonTerminals;
+    for (const auto& prod : nonTerminals) {
+        allNonTerminals.insert(prod.first);
+    }
+    
+    for (const string& nt : allNonTerminals) {
+        set<string> followSet = getFollowSet(nt);
+        syncTokens.insert(followSet.begin(), followSet.end());
+    }
+    
+    // 2. Agregar símbolos de inicio de producciones (FIRST sets)
+    for (size_t i = 0; i < states.size(); ++i) {
+        for (const auto& item : states[i]) {
+            if (item.dot < (int)item.body.size()) {
+                string nextSymbol = item.body[item.dot];
+                if (grammar->isTerminal(nextSymbol)) {
+                    syncTokens.insert(nextSymbol);
+                }
+            }
+        }
+    }
+    
+    // 3. Para cada estado, calcular tokens de sincronización específicos
+    for (size_t i = 0; i < states.size(); ++i) {
+        stateSyncTokens[i] = set<string>();
+        
+        // Agregar todos los símbolos para los que el estado tiene acciones definidas
+        if (actionTable.find(i) != actionTable.end()) {
+            for (const auto& [symbol, action] : actionTable.at(i)) {
+                if (action[0] == 's' || action[0] == 'r' || action == "acc") {
+                    stateSyncTokens[i].insert(symbol);
+                }
+            }
+        }
+        
+        // Agregar tokens de sincronización generales
+        stateSyncTokens[i].insert(syncTokens.begin(), syncTokens.end());
+    }
+    
+    // 4. Agregar delimitadores comunes
+    syncTokens.insert("$");
+    syncTokens.insert(";");
+    syncTokens.insert(")");
+    syncTokens.insert("}");
+    syncTokens.insert("]");
+    
+    cout << "Sync tokens computed: ";
+    for (const string& t : syncTokens) {
+        cout << t << " ";
+    }
+    cout << "\n";
+}
+
+
+bool LR1Parser::isSyncToken(int state, const string& token) {
+    // Verificar tokens específicos del estado
+    if (stateSyncTokens.find(state) != stateSyncTokens.end()) {
+        if (stateSyncTokens[state].find(token) != stateSyncTokens[state].end()) {
+            return true;
+        }
+    }
+    
+    // Verificar tokens generales
+    return syncTokens.find(token) != syncTokens.end();
+}
+
+
+// Recuperación en modo pánico
+void LR1Parser::panicModeRecovery(vector<int>& stateStack, 
+                                  vector<TreeNode*>& nodeStack,
+                                  vector<string>& tokens, 
+                                  size_t& inputPos) {
+    cout << "  [PANIC MODE] Attempting recovery...\n";
+    
+    // Paso 1: Desapilar estados hasta encontrar uno que tenga GOTO para algún no terminal
+    while (!stateStack.empty()) {
+        int currentState = stateStack.back();
+        bool hasGoto = false;
+        
+        if (gotoTable.find(currentState) != gotoTable.end()) {
+            for (const auto& [nt, target] : gotoTable.at(currentState)) {
+                // Verificar si este estado fue alcanzado desde el no terminal correcto
+                if (!nodeStack.empty() && nodeStack.back()->symbol == nt) {
+                    hasGoto = true;
+                    break;
+                }
+            }
+        }
+        
+        if (hasGoto) break;
+        
+        // Desapilar un estado
+        if (!stateStack.empty()) stateStack.pop_back();
+        if (!nodeStack.empty()) {
+            // No eliminamos el nodo, solo lo sacamos de la pila
+            nodeStack.pop_back();
+        }
+        
+        if (stateStack.empty()) {
+            cout << "  [PANIC MODE] Stack empty, cannot recover\n";
+            return;
+        }
+    }
+    
+    // Paso 2: Avanzar en la entrada hasta encontrar un token de sincronización
+    int currentState = stateStack.empty() ? 0 : stateStack.back();
+    size_t startPos = inputPos;
+    bool foundSync = false;
+    
+    while (inputPos < tokens.size()) {
+        string currentToken = tokens[inputPos];
+        
+        if (isSyncToken(currentState, currentToken)) {
+            foundSync = true;
+            cout << "  [PANIC MODE] Found sync token '" << currentToken 
+                 << "' at position " << inputPos << "\n";
+            
+            // Mostrar tokens descartados
+            if (inputPos > startPos) {
+                cout << "  [PANIC MODE] Discarded tokens: ";
+                for (size_t i = startPos; i < inputPos; i++) {
+                    cout << tokens[i] << " ";
+                }
+                cout << "\n";
+            }
+            break;
+        }
+        
+        inputPos++;
+    }
+    
+    if (!foundSync) {
+        cout << "  [PANIC MODE] No sync token found, setting to end of input\n";
+        inputPos = tokens.size() - 1; // Apuntar al EOF
+    }
+}
+
+
+// Recuperación a nivel de frase (más sofisticada)
+void LR1Parser::phraseLevelRecovery(vector<int>& stateStack,
+                                   vector<TreeNode*>& nodeStack,
+                                   vector<string>& tokens,
+                                   size_t& inputPos) {
+    cout << "  [PHRASE LEVEL] Attempting recovery...\n";
+    
+    int currentState = stateStack.empty() ? 0 : stateStack.back();
+    
+    // Intentar inserción de token
+    if (actionTable.find(currentState) != actionTable.end()) {
+        for (const auto& [token, action] : actionTable.at(currentState)) {
+            if (token != "$" && action[0] == 's') {
+                // Podríamos insertar este token
+                cout << "  [PHRASE LEVEL] Could insert '" << token << "' before '" 
+                     << tokens[inputPos] << "'\n";
+                
+                // Nota: La inserción real requeriría modificar el flujo de tokens
+                // Por ahora solo lo reportamos
+            }
+        }
+    }
+    
+    // Intentar reemplazo de token
+    if (actionTable.find(currentState) != actionTable.end()) {
+        const auto& actions = actionTable.at(currentState);
+        for (const auto& [token, action] : actions) {
+            if (token != "$" && token != tokens[inputPos] && action[0] == 's') {
+                cout << "  [PHRASE LEVEL] Could replace '" << tokens[inputPos] 
+                     << "' with '" << token << "'\n";
+                
+                // Reemplazar el token actual
+                tokens[inputPos] = token;
+                cout << "  [PHRASE LEVEL] Replaced token with '" << token << "'\n";
+                return;
+            }
+        }
+    }
+    
+    // Si no se puede recuperar a nivel de frase, usar modo pánico
+    panicModeRecovery(stateStack, nodeStack, tokens, inputPos);
 }
