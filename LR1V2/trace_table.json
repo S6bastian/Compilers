@@ -1,0 +1,10 @@
+{
+  "trace": [
+    {
+      "step": "1",
+      "stack": "0",
+      "input": "( a ) $",
+      "action": "ERROR"
+    }
+  ]
+}

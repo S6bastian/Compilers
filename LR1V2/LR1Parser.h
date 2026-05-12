@@ -3,29 +3,20 @@
 #include <set>
 #include <map>
 #include <vector>
+#include <queue>
+#include <deque>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+#include <fstream>
 
 using namespace std;
-
-enum ActionType { SHIFT, REDUCE, ACCEPT, ERROR };
-
-struct TableEntry {
-    ActionType type = ERROR;
-    int id = -1;
-};
-
-struct Node {
-    string value;
-    vector<Node*> children;
-    Node(string v) : value(v) {}
-};
 
 struct LR1Item {
     string head;
     vector<string> body;
     int dot;
-    string lookahead;
+    set<string> lookahead;
 
     bool operator<(const LR1Item& other) const {
         if (head != other.head) return head < other.head;
@@ -40,25 +31,59 @@ struct LR1Item {
     }
 };
 
-typedef set<LR1Item> State;
+
+struct TreeNode {
+    string symbol;
+    vector<TreeNode*> children;
+    
+    TreeNode(const string& sym) : symbol(sym) {}
+    
+    ~TreeNode() {
+        for (TreeNode* child : children) {
+            delete child;
+        }
+    }
+};
+
+
+typedef vector<LR1Item> State;
 
 class LR1Parser {
 public:
     LR1Parser(Grammar *g);
-    void buildCanonicalCollection();
+
+    void buildStates();
     void printStates() const;
     void buildTable();
     void printTable() const;
-    void parse(const vector<string>& input);
-    void printTree(Node* node, int depth) const;
 
+    bool parse(const string& input);
+    void printParseTrace(const string& input);
+    void printParseTree(TreeNode* node, int depth = 0) const;
+    void deleteTree(TreeNode* node);
+
+    // export
+    void exportFirstSetsToJSON(const std::string& filename) const;
+    void exportCanonicalCollectionToJSON(const std::string& filename) const;
+    void exportTableToJSON(const std::string& filename) const;
+    void exportTraceToJSON(const string& filename) const;
+    void exportParseTreeToJSON(const string& filename) const;
+    void exportTreeNodeToJSON(ofstream& out, const TreeNode* node, int depth) const;
+    
+    
 private:
-    Grammar *grammar;
-    vector<State> states; 
+    Grammar* grammar;
+    TreeNode* parseTreeRoot;
+    
+    vector<State> states;
     map<int, map<string, int>> transitions;
-    map<int, map<string, TableEntry>> parsingTable;
+    map<int, map<string, string>> actionTable; 
+    map<int, map<string, int>> gotoTable;       
+    vector<vector<string>> traceTable;
 
-    State closure(State I);
-    State goTo(const State& I, const string& X);
-    set<string> computeFirstChain(vector<string> beta, string lookahead);
+    set<string> computeLookahead(LR1Item item);
+    vector<LR1Item> closure(vector<LR1Item> kernels);
+    State goTo(const State& state, const string& symbol);
+
+    vector<string> tokenize(const string& input);
 };

@@ -1,0 +1,21 @@
+{
+  "parseTree": {
+    "symbol": "P",
+    "children": [
+{
+        "symbol": "("
+      },
+{
+        "symbol": "P",
+        "children": [
+{
+            "symbol": "a"
+          }
+        ]
+      },
+{
+        "symbol": ")"
+      }
+    ]
+  }
+}

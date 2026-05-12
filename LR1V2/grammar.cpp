@@ -61,16 +61,13 @@ void Grammar::loadFromFile(const string& filename) {
         productions.push_back({head, body});
         nonTerminals.insert(head);
     }
-
+    /*
     stable_sort(productions.begin(), productions.end(), [this](const auto& a, const auto& b){
-        // Si 'a' es el símbolo inicial y 'b' no, 'a' va primero
         if (a.first == startSymbol && b.first != startSymbol) return true;
-        // Si 'b' es el símbolo inicial y 'a' no, 'b' va primero
         if (b.first == startSymbol && a.first != startSymbol) return false;
-        
-        // Para los demás, ordenamos alfabéticamente
         return a.first < b.first;
     });
+    */
 }
 
 
@@ -91,11 +88,11 @@ const set<string> Grammar::getFirsts(const string& head) const{
     return firsts.at(head);
 }
 
-bool Grammar::isTerminal(const string& symbol){
+bool Grammar::isTerminal(const string& symbol) const{
     return terminals.find(symbol) != terminals.end();
 }
 
-bool Grammar::isNonTerminal(const string& symbol){
+bool Grammar::isNonTerminal(const string& symbol) const{
     return nonTerminals.find(symbol) != nonTerminals.end();
 }
 
@@ -152,6 +149,7 @@ void Grammar::printDebug() const {
 //********************************************************************************************************************
 
 void Grammar::extractTerminals(){ 
+    //terminals.insert("$");
     for(auto &production : productions){
         for(auto &symbol : production.second){
             if(nonTerminals.find(symbol) == nonTerminals.end() && symbol != emptySymbol){
@@ -188,9 +186,10 @@ void Grammar::extractFirsts(){
 
                     if (!hasEpsilon) break;
 
-                    if (&symbol == &body.back() && hasEpsilon) {
-                        firsts[head].insert(emptySymbol);
-                    }
+                    firsts[head].insert(emptySymbol);
+                    // if (&symbol == &body.back() && hasEpsilon) {
+                    //     firsts[head].insert(emptySymbol);
+                    // }
                 }
             }
             
