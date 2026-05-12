@@ -28,6 +28,9 @@ LR1Parser::LR1Parser(Grammar *g) {
     grammar = g;
     buildStates();
     buildTable();
+    
+    exportCanonicalCollectionToJSON("canonical_collection.json");
+    exportTableToJSON("lr1_table.json");
 }
 
 
@@ -289,7 +292,95 @@ void LR1Parser::printTable() const {
     }
 }
 
+// export
 
+void LR1Parser::exportCanonicalCollectionToJSON(const string& filename) const {
+    ofstream out(filename);
+    if (!out.is_open()) {
+        cerr << "Error: no se pudo abrir " << filename << " para escritura.\n";
+        return;
+    }
+
+    out << "{\n  \"states\": [\n";
+    for (size_t i = 0; i < states.size(); ++i) {
+        out << "    {\n      \"id\": " << i << ",\n      \"items\": [\n";
+        const State& state = states[i];
+        for (size_t j = 0; j < state.size(); ++j) {
+            const LR1Item& item = state[j];
+            out << "        {\n";
+            out << "          \"head\": \"" << item.head << "\",\n";
+            out << "          \"body\": [";
+            for (size_t k = 0; k < item.body.size(); ++k) {
+                out << "\"" << item.body[k] << "\"";
+                if (k != item.body.size() - 1) out << ", ";
+            }
+            out << "],\n";
+            out << "          \"dot\": " << item.dot << ",\n";
+            out << "          \"lookahead\": [";
+            size_t laIdx = 0;
+            for (const string& la : item.lookahead) {
+                out << "\"" << la << "\"";
+                if (++laIdx != item.lookahead.size()) out << ", ";
+            }
+            out << "]\n";
+            out << "        }";
+            if (j != state.size() - 1) out << ",";
+            out << "\n";
+        }
+        out << "      ]\n";
+        out << "    }";
+        if (i != states.size() - 1) out << ",";
+        out << "\n";
+    }
+    out << "  ]\n}\n";
+    out.close();
+    cout << "Exported CC " << filename << "\n";
+}
+
+void LR1Parser::exportTableToJSON(const string& filename) const {
+    ofstream out(filename);
+    if (!out.is_open()) {
+        cerr << "Error: no se pudo abrir " << filename << " para escritura.\n";
+        return;
+    }
+
+    out << "{\n  \"states\": [\n";
+    for (size_t i = 0; i < states.size(); ++i) {
+        out << "    {\n      \"id\": " << i << ",\n";
+
+        // --- ACTION ---
+        out << "      \"action\": {";
+        if (actionTable.find(i) != actionTable.end()) {
+            const auto& actions = actionTable.at(i);
+            size_t count = 0;
+            for (const auto& [symbol, action] : actions) {
+                out << "\"" << symbol << "\": \"" << action << "\"";
+                if (++count != actions.size()) out << ", ";
+            }
+        }
+        out << "},\n";
+
+        // --- GOTO ---
+        out << "      \"goto\": {";
+        if (gotoTable.find(i) != gotoTable.end()) {
+            const auto& gotos = gotoTable.at(i);
+            size_t count = 0;
+            for (const auto& [symbol, target] : gotos) {
+                out << "\"" << symbol << "\": " << target;
+                if (++count != gotos.size()) out << ", ";
+            }
+        }
+        out << "}\n";
+
+        out << "    }";
+        if (i != states.size() - 1) out << ",";
+        out << "\n";
+    }
+    out << "  ]\n}\n";
+    out.close();
+
+    cout << "Table ACTION/GOTO exported as " << filename << endl;
+}
 
 
 //********************************************************************************************************************
@@ -411,7 +502,6 @@ State LR1Parser::goTo(const State& state, const string& symbol) {
 
 
 
-// Al final de LR1Parser.cpp, agrega:
 
 vector<string> LR1Parser::tokenize(const string& input) {
     vector<string> tokens;

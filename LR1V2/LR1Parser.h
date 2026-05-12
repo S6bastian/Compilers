@@ -8,6 +8,7 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 
@@ -61,6 +62,11 @@ public:
     void printParseTree(TreeNode* node, int depth = 0) const;
     void deleteTree(TreeNode* node);
 
+    // export
+    void exportCanonicalCollectionToJSON(const std::string& filename) const;
+    void exportTableToJSON(const std::string& filename) const;
+    
+    
 private:
     Grammar *grammar;
     

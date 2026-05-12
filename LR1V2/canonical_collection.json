@@ -1,0 +1,150 @@
+{
+  "states": [
+    {
+      "id": 0,
+      "items": [
+        {
+          "head": "P'",
+          "body": ["P"],
+          "dot": 0,
+          "lookahead": ["$"]
+        },
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 0,
+          "lookahead": ["$"]
+        },
+        {
+          "head": "P",
+          "body": ["a"],
+          "dot": 0,
+          "lookahead": ["$"]
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "items": [
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 1,
+          "lookahead": ["$"]
+        },
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 0,
+          "lookahead": [")"]
+        },
+        {
+          "head": "P",
+          "body": ["a"],
+          "dot": 0,
+          "lookahead": [")"]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "items": [
+        {
+          "head": "P'",
+          "body": ["P"],
+          "dot": 1,
+          "lookahead": ["$"]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "items": [
+        {
+          "head": "P",
+          "body": ["a"],
+          "dot": 1,
+          "lookahead": ["$"]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "items": [
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 1,
+          "lookahead": [")"]
+        },
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 0,
+          "lookahead": [")"]
+        },
+        {
+          "head": "P",
+          "body": ["a"],
+          "dot": 0,
+          "lookahead": [")"]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "items": [
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 2,
+          "lookahead": ["$"]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "items": [
+        {
+          "head": "P",
+          "body": ["a"],
+          "dot": 1,
+          "lookahead": [")"]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "items": [
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 2,
+          "lookahead": [")"]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "items": [
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 3,
+          "lookahead": ["$"]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "items": [
+        {
+          "head": "P",
+          "body": ["(", "P", ")"],
+          "dot": 3,
+          "lookahead": [")"]
+        }
+      ]
+    }
+  ]
+}
