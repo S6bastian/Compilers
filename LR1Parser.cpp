@@ -533,8 +533,6 @@ State LR1Parser::closure(vector<LR1Item> kernels) {
         return -1;
     };
 
-    // Función que intenta agregar un ítem al estado.
-    // Retorna true si hubo cambio (ítem nuevo o lookaheads nuevos).
     auto addItem = [&](LR1Item item) -> bool {
         int idx = findItemByKey(state, item);
         if (idx == -1) {
@@ -546,7 +544,6 @@ State LR1Parser::closure(vector<LR1Item> kernels) {
         return state[idx].lookahead.size() > before;
     };
 
-    // Seed con los kernels
     deque<LR1Item> workList;
     for (const auto& k : kernels) {
         if (addItem(k)) workList.push_back(k);
@@ -562,7 +559,6 @@ State LR1Parser::closure(vector<LR1Item> kernels) {
         string nextSymbol = current.body[current.dot];
         if (!grammar->isNonTerminal(nextSymbol)) continue;
 
-        // Calcular lookaheads para los hijos: FIRST(resto β · lookahead)
         set<string> childLookaheads = computeLookahead(current);
 
         for (const auto& prod : grammar->getProductions()) {
@@ -570,11 +566,9 @@ State LR1Parser::closure(vector<LR1Item> kernels) {
 
             LR1Item child{prod.first, prod.second, 0, childLookaheads};
 
-            // Solo propagamos si realmente hubo cambio
             if (addItem(child)) {
-                // Buscar el ítem ya fusionado en state para propagar sus lookaheads completos
                 int idx = findItemByKey(state, child);
-                LR1Item merged = state[idx]; // con todos los lookaheads acumulados
+                LR1Item merged = state[idx];
                 workList.push_back(merged);
             }
         }
