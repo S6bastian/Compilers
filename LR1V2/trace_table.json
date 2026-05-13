@@ -3,8 +3,152 @@
     {
       "step": "1",
       "stack": "0",
-      "input": "( a ) $",
-      "action": "ERROR"
+      "input": "- ( num + id ) % num $",
+      "action": "s2"
+    },
+    {
+      "step": "2",
+      "stack": "0 - 2",
+      "input": "( num + id ) % num $",
+      "action": "s1"
+    },
+    {
+      "step": "3",
+      "stack": "0 - 2 ( 1",
+      "input": "num + id ) % num $",
+      "action": "s16"
+    },
+    {
+      "step": "4",
+      "stack": "0 - 2 ( 1 num 16",
+      "input": "+ id ) % num $",
+      "action": "r11"
+    },
+    {
+      "step": "5",
+      "stack": "0 - 2 ( 1 G 12",
+      "input": "+ id ) % num $",
+      "action": "r9"
+    },
+    {
+      "step": "6",
+      "stack": "0 - 2 ( 1 F 11",
+      "input": "+ id ) % num $",
+      "action": "r7"
+    },
+    {
+      "step": "7",
+      "stack": "0 - 2 ( 1 T 14",
+      "input": "+ id ) % num $",
+      "action": "r3"
+    },
+    {
+      "step": "8",
+      "stack": "0 - 2 ( 1 S 13",
+      "input": "+ id ) % num $",
+      "action": "s26"
+    },
+    {
+      "step": "9",
+      "stack": "0 - 2 ( 1 S 13 + 26",
+      "input": "id ) % num $",
+      "action": "s15"
+    },
+    {
+      "step": "10",
+      "stack": "0 - 2 ( 1 S 13 + 26 id 15",
+      "input": ") % num $",
+      "action": "r12"
+    },
+    {
+      "step": "11",
+      "stack": "0 - 2 ( 1 S 13 + 26 G 12",
+      "input": ") % num $",
+      "action": "r9"
+    },
+    {
+      "step": "12",
+      "stack": "0 - 2 ( 1 S 13 + 26 F 11",
+      "input": ") % num $",
+      "action": "r7"
+    },
+    {
+      "step": "13",
+      "stack": "0 - 2 ( 1 S 13 + 26 T 37",
+      "input": ") % num $",
+      "action": "r1"
+    },
+    {
+      "step": "14",
+      "stack": "0 - 2 ( 1 S 13",
+      "input": ") % num $",
+      "action": "s25"
+    },
+    {
+      "step": "15",
+      "stack": "0 - 2 ( 1 S 13 ) 25",
+      "input": "% num $",
+      "action": "r10"
+    },
+    {
+      "step": "16",
+      "stack": "0 - 2 G 4",
+      "input": "% num $",
+      "action": "r9"
+    },
+    {
+      "step": "17",
+      "stack": "0 - 2 F 17",
+      "input": "% num $",
+      "action": "r8"
+    },
+    {
+      "step": "18",
+      "stack": "0 F 3",
+      "input": "% num $",
+      "action": "r7"
+    },
+    {
+      "step": "19",
+      "stack": "0 T 6",
+      "input": "% num $",
+      "action": "s20"
+    },
+    {
+      "step": "20",
+      "stack": "0 T 6 % 20",
+      "input": "num $",
+      "action": "s8"
+    },
+    {
+      "step": "21",
+      "stack": "0 T 6 % 20 num 8",
+      "input": "$",
+      "action": "r11"
+    },
+    {
+      "step": "22",
+      "stack": "0 T 6 % 20 G 4",
+      "input": "$",
+      "action": "r9"
+    },
+    {
+      "step": "23",
+      "stack": "0 T 6 % 20 F 33",
+      "input": "$",
+      "action": "r6"
+    },
+    {
+      "step": "24",
+      "stack": "0 T 6",
+      "input": "$",
+      "action": "r3"
+    },
+    {
+      "step": "25",
+      "stack": "0 S 5",
+      "input": "$",
+      "action": "acc"
     }
   ]
 }

@@ -1,20 +1,105 @@
 {
   "parseTree": {
-    "symbol": "P",
+    "symbol": "S",
     "children": [
 {
-        "symbol": "("
-      },
-{
-        "symbol": "P",
+        "symbol": "T",
         "children": [
 {
-            "symbol": "a"
+            "symbol": "T",
+            "children": [
+{
+                "symbol": "F",
+                "children": [
+{
+                    "symbol": "-"
+                  },
+{
+                    "symbol": "F",
+                    "children": [
+{
+                        "symbol": "G",
+                        "children": [
+{
+                            "symbol": "("
+                          },
+{
+                            "symbol": "S",
+                            "children": [
+{
+                                "symbol": "S",
+                                "children": [
+{
+                                    "symbol": "T",
+                                    "children": [
+{
+                                        "symbol": "F",
+                                        "children": [
+{
+                                            "symbol": "G",
+                                            "children": [
+{
+                                                "symbol": "num"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+{
+                                "symbol": "+"
+                              },
+{
+                                "symbol": "T",
+                                "children": [
+{
+                                    "symbol": "F",
+                                    "children": [
+{
+                                        "symbol": "G",
+                                        "children": [
+{
+                                            "symbol": "id"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+{
+                            "symbol": ")"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+{
+            "symbol": "%"
+          },
+{
+            "symbol": "F",
+            "children": [
+{
+                "symbol": "G",
+                "children": [
+{
+                    "symbol": "num"
+                  }
+                ]
+              }
+            ]
           }
         ]
-      },
-{
-        "symbol": ")"
       }
     ]
   }

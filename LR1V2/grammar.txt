@@ -1,10 +1,12 @@
-S -> Z a
-Z -> C C
-C -> C c
-C -> d
-C -> e
-C -> G g
-G -> e
-G -> x
-G -> W
-W -> e
+S -> S + T
+S -> S - T
+S -> T
+T  -> T * F
+T -> T / F
+T -> T % F
+T -> F
+F -> - F
+F -> G
+G -> ( S )
+G -> num
+G -> id

@@ -522,70 +522,66 @@ set<string> LR1Parser::computeLookahead(LR1Item item){
 
 State LR1Parser::closure(vector<LR1Item> kernels) {
     vector<LR1Item> state;
-    deque<LR1Item> pending;
-    
-    for (const auto& item : kernels) {
-        pending.push_back(item);
-    }
-    
+
     auto findItemByKey = [](const vector<LR1Item>& items, const LR1Item& target) -> int {
         for (size_t i = 0; i < items.size(); ++i) {
-            if (items[i].head == target.head && 
-                items[i].body == target.body && 
-                items[i].dot == target.dot) {
-                return i;
-            }
+            if (items[i].head == target.head &&
+                items[i].body == target.body &&
+                items[i].dot  == target.dot)
+                return (int)i;
         }
         return -1;
     };
-    
-    while (!pending.empty()) {
-        LR1Item current = pending.front();
-        pending.pop_front();
-        
-        int existingIndex = findItemByKey(state, current);
-        
-        if (existingIndex == -1) {
-            state.push_back(current);
 
-            if (current.dot < (int)current.body.size()) {
-                string nextSymbol = current.body[current.dot];
-                
-                if (grammar->isNonTerminal(nextSymbol)) {
-                    set<string> lookaheads = computeLookahead(current);
+    // Función que intenta agregar un ítem al estado.
+    // Retorna true si hubo cambio (ítem nuevo o lookaheads nuevos).
+    auto addItem = [&](LR1Item item) -> bool {
+        int idx = findItemByKey(state, item);
+        if (idx == -1) {
+            state.push_back(item);
+            return true;
+        }
+        size_t before = state[idx].lookahead.size();
+        state[idx].lookahead.insert(item.lookahead.begin(), item.lookahead.end());
+        return state[idx].lookahead.size() > before;
+    };
 
+    // Seed con los kernels
+    deque<LR1Item> workList;
+    for (const auto& k : kernels) {
+        if (addItem(k)) workList.push_back(k);
+    }
 
-                    // DEBUG
-                    // cout << "  Expanding " << nextSymbol << " from item: ";
-                    // for(auto s : current.body) cout << s << " ";
-                    // cout << ", lookaheads: { ";
-                    // for(auto l : lookaheads) cout << l << " ";
-                    // cout << "}\n";
+    while (!workList.empty()) {
+        LR1Item current = workList.front();
+        workList.pop_front();
 
-                    
-                    for (const auto& prod : grammar->getProductions()) {
-                        if (prod.first == nextSymbol) {
-                            LR1Item newItem{prod.first, prod.second, 0, lookaheads};
-                            pending.push_back(newItem);
-                        }
-                    }
-                }
-            }
-        } else {
+        if (current.dot >= (int)current.body.size()) continue;
+        if (current.body[0] == grammar->getEmptySymbol()) continue;
 
-            size_t oldSize = state[existingIndex].lookahead.size();
-            state[existingIndex].lookahead.insert(current.lookahead.begin(), current.lookahead.end());
-            
-            if (state[existingIndex].lookahead.size() > oldSize && 
-                state[existingIndex].dot < (int)state[existingIndex].body.size()) {
+        string nextSymbol = current.body[current.dot];
+        if (!grammar->isNonTerminal(nextSymbol)) continue;
 
-                pending.push_back(state[existingIndex]);
+        // Calcular lookaheads para los hijos: FIRST(resto β · lookahead)
+        set<string> childLookaheads = computeLookahead(current);
+
+        for (const auto& prod : grammar->getProductions()) {
+            if (prod.first != nextSymbol) continue;
+
+            LR1Item child{prod.first, prod.second, 0, childLookaheads};
+
+            // Solo propagamos si realmente hubo cambio
+            if (addItem(child)) {
+                // Buscar el ítem ya fusionado en state para propagar sus lookaheads completos
+                int idx = findItemByKey(state, child);
+                LR1Item merged = state[idx]; // con todos los lookaheads acumulados
+                workList.push_back(merged);
             }
         }
     }
-    
+
     return state;
-}
+}   
 
 
 State LR1Parser::goTo(const State& state, const string& symbol) {
