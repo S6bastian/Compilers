@@ -12,46 +12,17 @@
                 "symbol": "F",
                 "children": [
 {
-                    "symbol": "-"
-                  },
-{
-                    "symbol": "F",
+                    "symbol": "G",
                     "children": [
 {
-                        "symbol": "G",
-                        "children": [
+                        "symbol": "("
+                      },
 {
-                            "symbol": "("
-                          },
+                        "symbol": "S",
+                        "children": [
 {
                             "symbol": "S",
                             "children": [
-{
-                                "symbol": "S",
-                                "children": [
-{
-                                    "symbol": "T",
-                                    "children": [
-{
-                                        "symbol": "F",
-                                        "children": [
-{
-                                            "symbol": "G",
-                                            "children": [
-{
-                                                "symbol": "num"
-                                              }
-                                            ]
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  }
-                                ]
-                              },
-{
-                                "symbol": "+"
-                              },
 {
                                 "symbol": "T",
                                 "children": [
@@ -62,7 +33,7 @@
                                         "symbol": "G",
                                         "children": [
 {
-                                            "symbol": "id"
+                                            "symbol": "num"
                                           }
                                         ]
                                       }
@@ -73,9 +44,30 @@
                             ]
                           },
 {
-                            "symbol": ")"
+                            "symbol": "+"
+                          },
+{
+                            "symbol": "T",
+                            "children": [
+{
+                                "symbol": "F",
+                                "children": [
+{
+                                    "symbol": "G",
+                                    "children": [
+{
+                                        "symbol": "id"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
                           }
                         ]
+                      },
+{
+                        "symbol": ")"
                       }
                     ]
                   }
@@ -84,7 +76,7 @@
             ]
           },
 {
-            "symbol": "%"
+            "symbol": "/"
           },
 {
             "symbol": "F",

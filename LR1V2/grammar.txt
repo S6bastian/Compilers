@@ -3,9 +3,7 @@ S -> S - T
 S -> T
 T  -> T * F
 T -> T / F
-T -> T % F
 T -> F
-F -> - F
 F -> G
 G -> ( S )
 G -> num
