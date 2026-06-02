@@ -786,3 +786,97 @@ void LR1Parser::deleteTree(TreeNode* node) {
         delete node;
     }
 }
+
+
+
+// scanner and translation to latex
+
+void LR1Parser::generateLatex(const string& outputFilename) const {
+    if (!parseTreeRoot) {
+        cout << "Error: No existe un árbol sintáctico para traducir. Ejecuta parse() primero.\n";
+        return;
+    }
+
+    ofstream out(outputFilename);
+    if (!out.is_open()) {
+        cerr << "Error: No se pudo crear el archivo de salida " << outputFilename << "\n";
+        return;
+    }
+
+    // 1. Escribimos el preámbulo estándar de un documento LaTeX
+    out << "\\documentclass{article}\n";
+    out << "\\pragma once\n"; // Evitamos problemas de codificación comunes
+    out << "\\usepackage[utf8]{inputenc}\n";
+    out << "\\begin{document}\n\n";
+
+    // 2. Recorremos recursivamente el árbol a partir de la raíz (DOCUMENT)
+    translateNode(parseTreeRoot, out);
+
+    // 3. Cerramos el documento
+    out << "\n\\end{document}\n";
+    out.close();
+
+    cout << "SUCCESS: Archivo LaTeX generado exitosamente en '" << outputFilename << "'\n";
+}
+
+void LR1Parser::translateNode(TreeNode* node, ofstream& out) const {
+    if (!node) return;
+
+    // --- CASO 1: ENCABEZADOS (#) ---
+    if (node->symbol == "HEADING") {
+        out << "\\section*{";
+        // El contenido del encabezado está en su segundo hijo (TEXT)
+        // Recorremos solo los hijos encargados del texto, omitiendo el HASH y el NEWLINE
+        if (node->children.size() >= 2) {
+            translateNode(node->children[1], out);
+        }
+        out << "}\n";
+        return; // Terminamos el procesamiento de este nodo
+    }
+
+    // --- CASO 2: TEXTO EN NEGRITA (BOLD) ---
+    if (node->symbol == "BOLD") {
+        out << "\\textbf{";
+        // El texto plano real está en el centro: DOUBLE_AST -> PLAIN_TEXT -> DOUBLE_AST
+        if (node->children.size() >= 2) {
+            out << node->children[1]->symbol; // Imprime directamente el lexema limpio
+        }
+        out << "}";
+        return;
+    }
+
+    // --- CASO 3: TEXTO EN CURSIVA (ITALICS) ---
+    if (node->symbol == "ITALICS") {
+        out << "\\textit{";
+        // El texto plano real está en el centro: ASTERISK -> PLAIN_TEXT -> ASTERISK
+        if (node->children.size() >= 2) {
+            out << node->children[1]->symbol; // Imprime directamente el lexema limpio
+        }
+        out << "}";
+        return;
+    }
+
+    // --- CASO 4: TEXTO PLANO TERMINAL (PLAIN_TEXT) ---
+    // Si llegamos a una hoja que contiene el lexema de texto plano guardado por el scanner
+    if (node->symbol != "DOCUMENT" && node->symbol != "BLOCKLIST" &&
+        node->symbol != "BLOCK" && node->symbol != "PARAGRAPH" &&
+        node->symbol != "TEXT" && node->symbol != "ELEMENT" &&
+        node->symbol != "HASH" && node->symbol != "DOUBLE_AST" &&
+        node->symbol != "ASTERISK" && node->symbol != "NEWLINE" &&
+        node->symbol != "$") {
+
+        out << node->symbol; // Imprime el bloque de palabras/letras directo
+        return;
+    }
+
+    // --- CASO GENERAL: NODOS ESTRUCTURALES ---
+    // Para DOCUMENT, BLOCKLIST, BLOCK, PARAGRAPH y TEXT simplemente seguimos bajando por sus hijos
+    for (TreeNode* child : node->children) {
+        translateNode(child, out);
+    }
+
+    // Al salir de un párrafo (PARAGRAPH), dejamos un espacio en blanco para el formato de LaTeX
+    if (node->symbol == "PARAGRAPH") {
+        out << "\n\n";
+    }
+}

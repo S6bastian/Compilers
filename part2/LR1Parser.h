@@ -71,7 +71,9 @@ public:
     void exportParseTreeToJSON(const string& filename) const;
     void exportTreeNodeToJSON(ofstream& out, const TreeNode* node, int depth) const;
 
+    // scanner and translation to latex
     TreeNode* getParseTreeRoot() const { return parseTreeRoot; }
+    void generateLatex(const string& outputFilename) const;
 
 
 private:
@@ -88,5 +90,7 @@ private:
     vector<LR1Item> closure(vector<LR1Item> kernels);
     State goTo(const State& state, const string& symbol);
 
+    // scanner and translation to latex
     vector<string> tokenize(const string& input);
+    void translateNode(TreeNode* node, ofstream& out) const;
 };
