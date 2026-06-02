@@ -1,36 +1,29 @@
-#include "Grammar.h"
-#include "LR1Parser.h"
 #include <iostream>
-#include <vector>
-#include <string>
+#include "Scanner.h"
+#include "Token.h"
 
-using namespace std;
+int main() {
+    std::cout << "INFO: SCAN Start scanning...\n" << std::endl;
 
-int main(){
-    string filename = "grammar.txt";
-    Grammar myGrammar(filename);
-    myGrammar.printDebug();
-    
-    cout << "\nStarting LR(1) Parser Construction...\n";
-    LR1Parser lr1(&myGrammar);
-    
-    string input;
-    cout << "\n=== LR(1) PARSER READY ===\n";
-    cout << "Enter input tokens separated by spaces (or 'quit' to exit):\n";
-    
-    while (true) {
-        cout << "\n> ";
-        getline(cin, input);
-        
-        if (input == "quit" || input == "exit") {
-            break;
-        }
-        
-        if (input.empty()) {
-            continue;
-        }
-        
-        lr1.printParseTrace(input);  
+    // Instanciamos nuestro scanner apuntando al archivo de prueba
+    Scanner scanner("example.txt");
+    Token token;
+
+    // Bucle para pedir tokens uno por uno (emulando la función gettoken() que usará el parser)
+    do {
+        token = scanner.gettoken();
+
+        // Imprimimos el token con el formato detallado (Debug) requerido por tu PDF
+        std::cout << "DEBUG: " << token.toString()
+                  << " [ " << token.lexeme << " ] found at ("
+                  << token.line << ":" << token.column << ")" << std::endl;
+
+    } while (token.type != TokenType::END_OF_FILE && token.type != TokenType::TOKEN_ERROR);
+
+    if (token.type == TokenType::TOKEN_ERROR) {
+        std::cout << "\nINFO: Completed with errors." << std::endl;
+    } else {
+        std::cout << "\nINFO: Completed with 0 errors" << std::endl;
     }
 
     return 0;

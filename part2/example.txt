@@ -1,0 +1,3 @@
+# Hello World
+This is a **bold text** example.
+*Italics text* goes here.
