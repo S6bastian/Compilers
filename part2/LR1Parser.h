@@ -71,6 +71,8 @@ public:
     void exportParseTreeToJSON(const string& filename) const;
     void exportTreeNodeToJSON(ofstream& out, const TreeNode* node, int depth) const;
 
+    TreeNode* getParseTreeRoot() const { return parseTreeRoot; }
+
 
 private:
     Grammar* grammar;
