@@ -612,199 +612,139 @@ vector<string> LR1Parser::tokenize(const string& input) {
 }
 
 bool LR1Parser::parse(const string& input) {
-    traceTable.clear();
+    // Inicializamos el Scanner apuntando al archivo que viene en el parámetro 'input'
+    Scanner scanner(input);
+
+    // DECLARACIÓN LOCAL DE LAS PILAS (Como lo tenías originalmente)
+    vector<int> stateStack;
+    vector<TreeNode*> symbolStack;
+
+    // Limpieza de estados y árboles previos
     if (parseTreeRoot) {
         deleteTree(parseTreeRoot);
         parseTreeRoot = nullptr;
     }
+    traceTable.clear();
 
-
-
-    vector<string> tokens = tokenize(input);
-
-    vector<int> stateStack;
-    vector<TreeNode*> nodeStack;
-
+    // El estado inicial del parser LR(1) siempre empieza en 0
     stateStack.push_back(0);
-    size_t inputPos = 0;
-    int stepCount = 0;
-    int errorCount = 0;
-    const int MAX_STEPS = 100;
 
-    cout << "\n=== PARSING TRACE ===\n";
-    cout << left << setw(6) << "Step"
-         << setw(30) << "Stack"
-         << setw(25) << "Input"
-         << setw(10) << "Action" << "\n";
-    cout << string(71, '-') << "\n";
+    // Pedimos el primer token real al Scanner
+    Token currentToken = scanner.gettoken();
 
-    while (stepCount < MAX_STEPS) {
-        stepCount++;
+    int steps = 0;
+    int maxSteps = 2000; // Evita bucles infinitos en caso de errores graves
+
+    while (steps < maxSteps) {
+        steps++;
+        int topState = stateStack.back();
+
+        // Convertimos el tipo de token a la cadena de texto exacta que espera tu tabla LR(1)
+        string currentSymbol = currentToken.toGrammarString();
+
+        // Si el Scanner detectó un error léxico, detenemos el parser inmediatamente
+        if (currentSymbol == "ERROR") {
+            cout << "Error léxico en la línea " << currentToken.line
+                 << ", columna " << currentToken.column
+                 << ": Lexema inválido '" << currentToken.lexeme << "'\n";
+            return false;
+        }
+
+        // Verificamos si existe una acción asignada para el estado actual con este símbolo
+        if (actionTable[topState].find(currentSymbol) == actionTable[topState].end()) {
+            cout << "Error sintáctico en la línea " << currentToken.line
+                 << ", columna " << currentToken.column
+                 << ": No se esperaba el token '" << currentSymbol
+                 << "' ( '" << currentToken.lexeme << "' )\n";
+            return false;
+        }
+
+        string action = actionTable[topState][currentSymbol];
+
+        // Llenamos la fila de la traza para el reporte en consola
         vector<string> row;
+        string stateStr = "";
+        for (int s : stateStack) stateStr += to_string(s) + " ";
+        row.push_back(stateStr);
 
-        int currentState = stateStack.back();
-        string currentToken = tokens[inputPos];
-
-        string stackStr = "";
-        for (size_t i = 0; i < stateStack.size(); i++) {
-            if (i > 0) stackStr += " ";
-            stackStr += to_string(stateStack[i]);
-            if (i < nodeStack.size() && nodeStack[i] != nullptr) {
-                stackStr += " " + nodeStack[i]->symbol;
-            }
-        }
-
-        string inputStr = "";
-        for (size_t i = inputPos; i < tokens.size(); i++) {
-            if (i > inputPos) inputStr += " ";
-            inputStr += tokens[i];
-        }
-
-        row.push_back(to_string(stepCount));
-        row.push_back(stackStr);
-        row.push_back(inputStr);
-
-
-        cout << left << setw(6) << stepCount
-             << setw(30) << stackStr
-             << setw(25) << inputStr;
-
-
-        if (actionTable.find(currentState) == actionTable.end() ||
-            actionTable[currentState].find(currentToken) == actionTable[currentState].end()) {
-            cout << setw(10) << "ERROR" << "\n";
-            cout << "  [PANIC MODE] Error en estado " << currentState
-                 << ": token inesperado '" << currentToken << "'\n";
-            errorCount++;
-
-            row.push_back("ERROR");
-            traceTable.push_back(row);
-
-
-            const string& syncSymbol = grammar->getProductions()[0].second[0];
-
-
-            cout << "  [PANIC MODE] Descartando tokens hasta encontrar '$'...\n";
-            while (tokens[inputPos] != "$") {
-                cout << "  [PANIC MODE]   descartado: '" << tokens[inputPos] << "'\n";
-                inputPos++;
-            }
-            currentToken = "$";
-
-            cout << "  [PANIC MODE] Buscando estado ancla con ACTION['$']...\n";
-            bool recovered = false;
-            while (!stateStack.empty()) {
-                int topSt = stateStack.back();
-                bool hasAction =
-                    actionTable.find(topSt) != actionTable.end() &&
-                    actionTable.at(topSt).find("$") != actionTable.at(topSt).end();
-                if (hasAction) {
-                    cout << "  [PANIC MODE] Recuperado en estado " << topSt
-                        << ": ACTION[" << topSt << ",['$']] = "
-                        << actionTable.at(topSt).at("$") << "\n";
-                    recovered = true;
-                    break;
-                }
-                stateStack.pop_back();
-                if (!nodeStack.empty()) {
-                    delete nodeStack.back();
-                    nodeStack.pop_back();
-                }
-            }
-
-            if (!recovered || stateStack.empty()) {
-                cout << "  [PANIC MODE] No se pudo recuperar. Abortando.\n";
-                return false;
-            }
-
-            continue;
-            // ──────────────────────────────────────────────────────────────────
-        }
-
-        string action = actionTable[currentState][currentToken];
-        cout << setw(10) << action;
-
+        string symStr = "";
+        for (TreeNode* n : symbolStack) symStr += n->symbol + " ";
+        row.push_back(symStr);
+        row.push_back(currentSymbol);
         row.push_back(action);
 
-        if (action == "acc") {
-            if (errorCount > 0) {
-                cout << "\n=== Input aceptado con " << errorCount
-                     << " error(es) recuperado(s). ===\n";
-            } else {
-                cout << "\n=== Input accepted! ===\n";
-            }
-            if (!nodeStack.empty()) {
-                cout << "\n=== PARSE TREE ===\n";
-                parseTreeRoot = nodeStack.back();
-                printParseTree(parseTreeRoot);
-            }
-
-            traceTable.push_back(row);
-
-            return (errorCount == 0);
-        }
-        else if (action[0] == 's') {
+        // --- CASO 1: ACCIÓN SHIFT (DESPLAZAMIENTO) ---
+        if (action[0] == 's') {
             int nextState = stoi(action.substr(1));
-
-            TreeNode* leaf = new TreeNode(currentToken);
-            nodeStack.push_back(leaf);
             stateStack.push_back(nextState);
 
+            // Creamos un nodo del árbol para este token terminal guardando su lexema real
+            TreeNode* leafNode = new TreeNode(currentSymbol);
+            symbolStack.push_back(leafNode);
+
+            cout << "Step " << steps << ": Shift " << nextState << " with token " << currentSymbol << " [ " << currentToken.lexeme << " ]\n";
+
             traceTable.push_back(row);
 
-            inputPos++;
-
-            cout << "  (Shift to state " << nextState << ")\n";
+            // ¡AVANZAMOS al siguiente token físico del archivo!
+            currentToken = scanner.gettoken();
         }
+        // --- CASO 2: ACCIÓN REDUCE (REDUCCIÓN) ---
         else if (action[0] == 'r') {
             int prodIndex = stoi(action.substr(1));
-            const auto& productions = grammar->getProductions();
-            const auto& [head, body] = productions[prodIndex];
+            auto const& production = grammar->getProductions()[prodIndex];
+            string head = production.first;
+            vector<string> body = production.second;
 
-            TreeNode* newNode = new TreeNode(head);
+            // Creamos el nodo padre no terminal
+            TreeNode* parentNode = new TreeNode(head);
+            vector<TreeNode*> children;
 
-            int popCount = body.size();
-            if (body.size() == 1 && body[0] == grammar->getEmptySymbol()) {
-               popCount = 0;
-                TreeNode* epsilonNode = new TreeNode(grammar->getEmptySymbol());
-                newNode->children.push_back(epsilonNode);
-            } else {
-                for (int i = popCount - 1; i >= 0; i--) {
-                    if (!nodeStack.empty()) {
-                        newNode->children.insert(newNode->children.begin(), nodeStack.back());
-                        nodeStack.pop_back();
-                    }
-                    if (!stateStack.empty()) {
-                        stateStack.pop_back();
-                    }
+            // Si la regla no produce epsilon (vacío), sacamos elementos de la pila
+            if (!(body.size() == 1 && body[0] == grammar->getEmptySymbol())) {
+                for (size_t i = 0; i < body.size(); ++i) {
+                    stateStack.pop_back();
+                    children.push_back(symbolStack.back());
+                    symbolStack.pop_back();
                 }
+                // Invertimos el orden para que los hijos queden de izquierda a derecha en el árbol
+                reverse(children.begin(), children.end());
+                parentNode->children = children;
+            } else {
+                // Caso épsilon: añadimos un nodo hijo vacío
+                parentNode->children.push_back(new TreeNode(grammar->getEmptySymbol()));
             }
 
-            nodeStack.push_back(newNode);
+            symbolStack.push_back(parentNode);
 
-            int topState = stateStack.back();
-            if (gotoTable.find(topState) == gotoTable.end() ||
-                gotoTable[topState].find(head) == gotoTable[topState].end()) {
-                cout << "Error: No goto for state " << topState << " and non-terminal '" << head << "'\n";
+            // Consultamos la tabla GOTO para saber a qué estado saltar tras la reducción
+            int topStateAfterPop = stateStack.back();
+            if (gotoTable[topStateAfterPop].find(head) == gotoTable[topStateAfterPop].end()) {
+                cout << "Error: No existe transición GOTO para el No Terminal " << head << "\n";
                 return false;
             }
 
-            int nextState = gotoTable[topState][head];
+            int nextState = gotoTable[topStateAfterPop][head];
             stateStack.push_back(nextState);
 
-            cout << "  (Reduce by " << head << " -> ";
-            if (body.empty() || (body.size() == 1 && body[0] == grammar->getEmptySymbol())) {
-                cout << grammar->getEmptySymbol();
-            } else {
-                for (const string& s : body) cout << s << " ";
-            }
-            cout << ", goto " << nextState << ")\n";
+            cout << "Step " << steps << ": Reduce by " << head << " -> ";
+            for (const string& s : body) cout << s << " ";
+            cout << ", goto " << nextState << "\n";
 
             traceTable.push_back(row);
+            // NOTA: Aquí NO llamamos a scanner.gettoken() porque el token actual debe ser
+            // reevaluado en el siguiente ciclo con el nuevo estado del Parser.
+        }
+        // --- CASO 3: ACCIÓN ACCEPT (ACEPTACIÓN) ---
+        else if (action == "acc") {
+            traceTable.push_back(row);
+            parseTreeRoot = symbolStack.back(); // El nodo raíz final queda en la cima
+            cout << "\nSUCCESS: El archivo 'example.txt' fue procesado y parseado CORRECTAMENTE.\n";
+            return true;
         }
     }
 
-    cout << "Error: Maximum steps exceeded\n";
+    cout << "Error: Se excedió el número máximo de pasos en el Parser.\n";
     return false;
 }
 

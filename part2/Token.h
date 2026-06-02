@@ -33,4 +33,17 @@ struct Token {
             default:                     return "UNKNOWN";
         }
     }
+
+    // Esta función devuelve el string EXACTO que espera el archivo grammar.txt
+        std::string toGrammarString() const {
+            switch (type) {
+                case TokenType::HASH:        return "HASH";
+                case TokenType::DOUBLE_AST:  return "DOUBLE_AST";
+                case TokenType::ASTERISK:    return "ASTERISK";
+                case TokenType::NEWLINE:     return "NEWLINE";
+                case TokenType::PLAIN_TEXT:  return "PLAIN_TEXT";
+                case TokenType::END_OF_FILE: return "$"; // El símbolo de fin de archivo clásico en LR(1)
+                default:                     return "ERROR";
+            }
+        }
 };

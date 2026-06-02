@@ -1,5 +1,6 @@
 #pragma once
 #include "Grammar.h"
+#include "Scanner.h"
 #include <set>
 #include <map>
 #include <vector>
@@ -26,7 +27,7 @@ struct LR1Item {
     }
 
     bool operator==(const LR1Item& other) const {
-        return head == other.head && body == other.body && 
+        return head == other.head && body == other.body &&
                dot == other.dot && lookahead == other.lookahead;
     }
 };
@@ -35,9 +36,9 @@ struct LR1Item {
 struct TreeNode {
     string symbol;
     vector<TreeNode*> children;
-    
+
     TreeNode(const string& sym) : symbol(sym) {}
-    
+
     ~TreeNode() {
         for (TreeNode* child : children) {
             delete child;
@@ -69,16 +70,16 @@ public:
     void exportTraceToJSON(const string& filename) const;
     void exportParseTreeToJSON(const string& filename) const;
     void exportTreeNodeToJSON(ofstream& out, const TreeNode* node, int depth) const;
-    
-    
+
+
 private:
     Grammar* grammar;
     TreeNode* parseTreeRoot;
-    
+
     vector<State> states;
     map<int, map<string, int>> transitions;
-    map<int, map<string, string>> actionTable; 
-    map<int, map<string, int>> gotoTable;       
+    map<int, map<string, string>> actionTable;
+    map<int, map<string, int>> gotoTable;
     vector<vector<string>> traceTable;
 
     set<string> computeLookahead(LR1Item item);
