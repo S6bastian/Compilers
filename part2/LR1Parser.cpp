@@ -678,8 +678,8 @@ bool LR1Parser::parse(const string& input) {
             int nextState = stoi(action.substr(1));
             stateStack.push_back(nextState);
 
-            // Creamos un nodo del árbol para este token terminal guardando su lexema real
-            TreeNode* leafNode = new TreeNode(currentSymbol);
+            // Guardamos el lexema real (el texto físico) en el nodo hoja
+            TreeNode* leafNode = new TreeNode(currentToken.lexeme);
             symbolStack.push_back(leafNode);
 
             cout << "Step " << steps << ": Shift " << nextState << " with token " << currentSymbol << " [ " << currentToken.lexeme << " ]\n";
@@ -805,7 +805,6 @@ void LR1Parser::generateLatex(const string& outputFilename) const {
 
     // 1. Escribimos el preámbulo estándar de un documento LaTeX
     out << "\\documentclass{article}\n";
-    out << "\\pragma once\n"; // Evitamos problemas de codificación comunes
     out << "\\usepackage[utf8]{inputenc}\n";
     out << "\\begin{document}\n\n";
 
@@ -825,21 +824,20 @@ void LR1Parser::translateNode(TreeNode* node, ofstream& out) const {
     // --- CASO 1: ENCABEZADOS (#) ---
     if (node->symbol == "HEADING") {
         out << "\\section*{";
-        // El contenido del encabezado está en su segundo hijo (TEXT)
-        // Recorremos solo los hijos encargados del texto, omitiendo el HASH y el NEWLINE
+        // El contenido del encabezado está en el segundo hijo (TEXT)
         if (node->children.size() >= 2) {
             translateNode(node->children[1], out);
         }
         out << "}\n";
-        return; // Terminamos el procesamiento de este nodo
+        return;
     }
 
     // --- CASO 2: TEXTO EN NEGRITA (BOLD) ---
     if (node->symbol == "BOLD") {
         out << "\\textbf{";
-        // El texto plano real está en el centro: DOUBLE_AST -> PLAIN_TEXT -> DOUBLE_AST
+        // El texto real está en el segundo hijo (el centro de: ** -> texto -> **)
         if (node->children.size() >= 2) {
-            out << node->children[1]->symbol; // Imprime directamente el lexema limpio
+            translateNode(node->children[1], out);
         }
         out << "}";
         return;
@@ -848,34 +846,33 @@ void LR1Parser::translateNode(TreeNode* node, ofstream& out) const {
     // --- CASO 3: TEXTO EN CURSIVA (ITALICS) ---
     if (node->symbol == "ITALICS") {
         out << "\\textit{";
-        // El texto plano real está en el centro: ASTERISK -> PLAIN_TEXT -> ASTERISK
+        // El texto real está en el segundo hijo (el centro de: * -> texto -> *)
         if (node->children.size() >= 2) {
-            out << node->children[1]->symbol; // Imprime directamente el lexema limpio
+            translateNode(node->children[1], out);
         }
         out << "}";
         return;
     }
 
-    // --- CASO 4: TEXTO PLANO TERMINAL (PLAIN_TEXT) ---
-    // Si llegamos a una hoja que contiene el lexema de texto plano guardado por el scanner
-    if (node->symbol != "DOCUMENT" && node->symbol != "BLOCKLIST" &&
-        node->symbol != "BLOCK" && node->symbol != "PARAGRAPH" &&
-        node->symbol != "TEXT" && node->symbol != "ELEMENT" &&
-        node->symbol != "HASH" && node->symbol != "DOUBLE_AST" &&
-        node->symbol != "ASTERISK" && node->symbol != "NEWLINE" &&
-        node->symbol != "$") {
+    // --- CASO 4: NODOS HOJA (TEXTO REAL) ---
+    if (node->children.empty()) {
+        // Agrega "|| node->symbol == "\\n"" por si tu scanner guardó el string con el escape
+        if (node->symbol != "#" && node->symbol != "**" &&
+            node->symbol != "*" && node->symbol != "\n" &&
+            node->symbol != "\\n" && node->symbol != "$") {
 
-        out << node->symbol; // Imprime el bloque de palabras/letras directo
+            out << node->symbol;
+        }
         return;
     }
 
     // --- CASO GENERAL: NODOS ESTRUCTURALES ---
-    // Para DOCUMENT, BLOCKLIST, BLOCK, PARAGRAPH y TEXT simplemente seguimos bajando por sus hijos
+    // Recorremos los hijos para DOCUMENT, BLOCKLIST, BLOCK, PARAGRAPH, TEXT, ELEMENT
     for (TreeNode* child : node->children) {
         translateNode(child, out);
     }
 
-    // Al salir de un párrafo (PARAGRAPH), dejamos un espacio en blanco para el formato de LaTeX
+    // Al salir de un párrafo (PARAGRAPH), dejamos la separación reglamentaria de LaTeX
     if (node->symbol == "PARAGRAPH") {
         out << "\n\n";
     }
