@@ -1,25 +1,24 @@
 GRAMMAR: Simplified Markdown CFG
 
 START SYMBOL:
-Document
+DOCUMENT
 
-NON-TERMINALS:
-Document, BlockList, Block, Heading, Paragraph, Text, Element, Bold, Italics, PlainText
 
 TERMINALS:
 '#', '**', '*', '\n', characters
 
 PRODUCTION RULES:
-Document    -> BlockList
-BlockList   -> Block | Block BlockList
-Block       -> Heading | Paragraph
-
-Heading     -> '#' Text '\n'
-Paragraph   -> Text '\n'
-
-Text        -> Element | Element Text
-Element     -> Bold | Italics | PlainText
-
-Bold        -> '**' PlainText '**'
-Italics     -> '*' PlainText '*'
-PlainText   -> characters | characters PlainText
+DOCUMENT -> BLOCKLIST
+BLOCKLIST -> BLOCKLIST BLOCK
+BLOCKLIST -> BLOCK
+BLOCK -> HEADING
+BLOCK -> PARAGRAPH
+HEADING -> HASH TEXT NEWLINE
+PARAGRAPH -> TEXT NEWLINE
+TEXT -> TEXT ELEMENT
+TEXT -> ELEMENT
+ELEMENT -> BOLD
+ELEMENT -> ITALICS
+ELEMENT -> PLAIN_TEXT
+BOLD -> DOUBLE_AST PLAIN_TEXT DOUBLE_AST
+ITALICS -> ASTERISK PLAIN_TEXT ASTERISK
