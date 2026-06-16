@@ -13,6 +13,7 @@ public:
     const vector<pair<string, vector<string>>>& getProductions() const;
     const string& getStartSymbol() const;
     const string& getEmptySymbol() const;
+    const map<string, set<string>>& getFollows() const;
     const set<string> getFirsts(const string& head) const;
     bool isTerminal(const string& symbol) const;
     bool isNonTerminal(const string& symbol) const;
@@ -28,4 +29,7 @@ private:
     set<string> nonTerminals;
     set<string> terminals;
     map<string, set<string>> firsts;
+
+    void extractFollows();
+    map<string, set<string>> follows;
 };

@@ -1,10 +1,6 @@
-S -> S + T
-S -> S - T
-S -> T
-T  -> T * F
-T -> T / F
+E -> E + T
+E -> T
+T -> T * F
 T -> F
-F -> G
-G -> ( S )
-G -> num
-G -> id
+F -> ( E )
+F -> id
