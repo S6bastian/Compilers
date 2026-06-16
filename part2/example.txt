@@ -1,3 +1,6 @@
 #Hello World
 This is a **bold text** example.
 *Italics text* goes here.
+Este es un parrafo normal.
+![Logotipo](logo.png)
+BLA BLA BLA.

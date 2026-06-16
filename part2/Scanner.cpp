@@ -62,6 +62,16 @@ Token Scanner::gettoken() {
     // Leemos el carácter actual
     char c = getchar();
 
+    if (c == '!' && peekchar() == '[') {
+        getchar();
+        return Token{TokenType::IMG_START, "![", tokenLine, tokenColumn};
+    }
+
+    if (c == ']') return Token{TokenType::R_BRACKET, "]", tokenLine, tokenColumn};
+    if (c == '(') return Token{TokenType::L_PAREN, "(", tokenLine, tokenColumn};
+    if (c == ')') return Token{TokenType::R_PAREN, ")", tokenLine, tokenColumn};
+
+
     // CASO A: Saltos de línea
     if (c == '\n') {
         return Token{TokenType::NEWLINE, "\\n", tokenLine, tokenColumn};
@@ -91,8 +101,8 @@ Token Scanner::gettoken() {
     while (!isAtEnd()) {
         char next = peekchar();
 
-        if (next == '\n' || next == '#' || next == '*') {
-            break; // Detenemos la acumulación para que el siguiente ciclo maneje la marca
+        if (next == '\n' || next == '#' || next == '*' || next == ']' || next == '(' || next == ')') {
+            break;
         }
 
         // Si es un carácter normal, lo consumimos oficialmente y lo sumamos al lexema

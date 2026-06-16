@@ -1051,6 +1051,7 @@ string LR1Parser::generateLatex() {
     // 2. Construimos la estructura completa con las cabeceras requeridas
     string result = "\\documentclass{article}\n";
     result += "\\usepackage[utf8]{inputenc}\n";
+    result += "\\usepackage{graphicx}\n";
     result += "\\begin{document}\n\n";
 
     result += body;
@@ -1104,13 +1105,42 @@ string LR1Parser::translateNode(TreeNode* node) {
         }
     }
 
+    // === TRADUCCIÓN DE IMÁGENES ===
+    if (symbol == "IMAGE") {
+        // Estructura de hijos según la regla aplicada:
+        // children[0] = IMG_START ("![")
+        // children[1] = TEXT (El árbol del texto alternativo)
+        // children[2] = R_BRACKET ("]")
+        // children[3] = L_PAREN ("(")
+        // children[4] = PLAIN_TEXT (El nodo hoja con la ruta/url de la imagen)
+        // children[5] = R_PAREN (")")
+        // children[6] = NEWLINE
+
+        if (node->children.size() >= 6) {
+            // El texto alternativo puede contener negritas/cursivas, así que lo procesamos recursivamente
+            string altText = translateNode(node->children[1]);
+
+            // La URL es texto plano directo (un nodo hoja sin hijos), extraemos su símbolo/lexema original
+            string url = node->children[4]->symbol;
+
+            // Construimos el bloque flotante tradicional de LaTeX para imágenes
+            string latexImg = "\\begin{figure}[h]\n";
+            latexImg += "  \\centering\n";
+            latexImg += "  \\includegraphics[width=0.8\\textwidth]{" + url + "}\n";
+            latexImg += "  \\caption{" + altText + "}\n";
+            latexImg += "\\end{figure}\n\n";
+
+            return latexImg;
+        }
+    }
+
     // 6. Hojas Terminales
     if (node->children.empty()) {
-        // Ignoramos los tokens de control de markdown en la salida final porque ya los procesamos arriba
-        if (symbol == "HASH" || symbol == "DOUBLE_AST" || symbol == "ASTERISK" || symbol == "NEWLINE" || symbol == "$") {
+        if (symbol == "HASH" || symbol == "DOUBLE_AST" || symbol == "ASTERISK" ||
+            symbol == "NEWLINE" || symbol == "$" ||
+            symbol == "IMG_START" || symbol == "R_BRACKET" || symbol == "L_PAREN" || symbol == "R_PAREN") {
             return "";
         }
-        // Si es texto plano puro retenido en el shift, lo imprimimos directamente
         return symbol;
     }
 

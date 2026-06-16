@@ -15,6 +15,7 @@ int main() {
         "BLOCKLIST -> BLOCK",
         "BLOCK -> HEADING",
         "BLOCK -> PARAGRAPH",
+        "BLOCK -> IMAGE",
         "HEADING -> HASH TEXT NEWLINE",
         "PARAGRAPH -> TEXT NEWLINE",
         "TEXT -> TEXT ELEMENT",
@@ -23,7 +24,8 @@ int main() {
         "ELEMENT -> ITALICS",
         "ELEMENT -> PLAIN_TEXT",
         "BOLD -> DOUBLE_AST PLAIN_TEXT DOUBLE_AST",
-        "ITALICS -> ASTERISK PLAIN_TEXT ASTERISK"
+        "ITALICS -> ASTERISK PLAIN_TEXT ASTERISK",
+        "IMAGE -> IMG_START TEXT R_BRACKET L_PAREN PLAIN_TEXT R_PAREN NEWLINE"
     };
 
     // Inicializamos la estructura de la gramática
