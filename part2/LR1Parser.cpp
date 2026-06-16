@@ -1042,9 +1042,22 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
 // Método público: Verifica que el árbol exista e inicia la recursión desde la raíz
 string LR1Parser::generateLatex() {
     if (!parseTreeRoot) {
-        return "% Error: No se ha construido el arbol de derivacion sintactica.\n";
+        return "";
     }
-    return translateNode(parseTreeRoot);
+
+    // 1. Generamos todo el cuerpo recorriendo el árbol AST
+    string body = translateNode(parseTreeRoot);
+
+    // 2. Construimos la estructura completa con las cabeceras requeridas
+    string result = "\\documentclass{article}\n";
+    result += "\\usepackage[utf8]{inputenc}\n";
+    result += "\\begin{document}\n\n";
+
+    result += body;
+
+    result += "\\end{document}\n";
+
+    return result;
 }
 
 // Método privado: Analiza el símbolo de cada TreeNode y genera su código equivalente
@@ -1055,16 +1068,10 @@ string LR1Parser::translateNode(TreeNode* node) {
 
     // 1. Estructura base del documento
     if (symbol == "DOCUMENT") {
-        string body = "";
-        for (TreeNode* child : node->children) {
-            body += translateNode(child);
+        if (!node->children.empty()) {
+            return translateNode(node->children[0]); // Solo traduce el BLOCKLIST hijo
         }
-        string result = "\\documentclass{article}\n";
-        result += "\\usepackage[utf8]{inputenc}\n";
-        result += "\\begin{document}\n\n";
-        result += body;
-        result += "\\end{document}\n";
-        return result;
+        return "";
     }
 
     // 2. Títulos / Encabezados: HEADING -> HASH TEXT NEWLINE
