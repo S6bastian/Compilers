@@ -914,11 +914,9 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
 
             if (terminal == "$") return false;
 
-            // 1. Descartar el token conflictivo actual para evitar bucles infinitos
             cout << "   Omitiendo: '" << tokens[tokenIndex].lexeme << "'\n";
             tokenIndex++;
 
-            // Descartar hasta encontrar el token de sincronización física (NEWLINE)
             while (tokenIndex < tokens.size() && tokens[tokenIndex].toGrammarString() != "NEWLINE") {
                 cout << "   Omitiendo: '" << tokens[tokenIndex].lexeme << "'\n";
                 tokenIndex++;
@@ -929,19 +927,15 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
                 return false;
             }
 
-            // Avanzamos para consumir el NEWLINE y usarlo como punto de reinicio
             tokenIndex++;
 
-            // 2. Buscar un estado ancla en la pila usando DOBLE PASADA (Prioridad estricta)
             bool recovered = false;
             int targetState = -1;
             string syncTokenChosen = "";
 
-            // Guardamos copias temporales de las pilas para poder simular el desapilado local primero
             auto stateStackCopy = stateStack;
             auto treeStackCopy = treeStack;
 
-            // --- PASADA 1: Intentar recuperar localmente con "BLOCK" ---
             while (!stateStackCopy.empty()) {
                 int state = stateStackCopy.back();
                 if (gotoTable[state].find("BLOCK") != gotoTable[state].end()) {
@@ -949,7 +943,6 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
                     syncTokenChosen = "BLOCK";
                     recovered = true;
 
-                    // Aplicamos los cambios reales a las pilas originales
                     stateStack = stateStackCopy;
                     treeStack = treeStackCopy;
                     break;
@@ -963,9 +956,8 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
                 }
             }
 
-            // --- PASADA 2: Si falló BLOCK, intentar con el ancla global "DOCUMENT" ---
             if (!recovered) {
-                stateStackCopy = stateStack; // Reiniciamos la copia con el estado actual de las pilas
+                stateStackCopy = stateStack;
                 treeStackCopy = treeStack;
 
                 while (!stateStackCopy.empty()) {
@@ -975,7 +967,6 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
                         syncTokenChosen = "DOCUMENT";
                         recovered = true;
 
-                        // Aplicamos los cambios reales a las pilas originales (Liberando memoria de lo destruido)
                         while (stateStack.size() > stateStackCopy.size()) {
                             stateStack.pop_back();
                             if (!treeStack.empty()) {
@@ -1000,7 +991,7 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
                 return false;
             }
 
-            // 3. Insertar el nodo de error usando el token con el que logramos sincronizar
+
             TreeNode* errorBlock = new TreeNode(syncTokenChosen);
             TreeNode* errorNode = new TreeNode("% [Error de Sintaxis Omitido en esta linea]\n");
             errorBlock->children.push_back(errorNode);
@@ -1100,10 +1091,9 @@ string LR1Parser::translateNode(TreeNode* node) {
 
     string symbol = node->symbol;
 
-    // 1. Estructura base del documento
     if (symbol == "DOCUMENT") {
         if (!node->children.empty()) {
-            return translateNode(node->children[0]); // Solo traduce el BLOCKLIST hijo
+            return translateNode(node->children[0]);
         }
         return "";
     }
@@ -1126,14 +1116,12 @@ string LR1Parser::translateNode(TreeNode* node) {
 
     if (symbol == "BOLD") {
         if (node->children.size() == 3) {
-            // children[1] ahora es INNER_TEXT
             return "\\textbf{" + translateNode(node->children[1]) + "}";
         }
     }
 
     if (symbol == "ITALICS") {
         if (node->children.size() == 3) {
-            // children[1] ahora es INNER_TEXT
             return "\\textit{" + translateNode(node->children[1]) + "}";
         }
     }
@@ -1153,6 +1141,9 @@ string LR1Parser::translateNode(TreeNode* node) {
         return "";
     }
 
+    if (symbol == "BLANK_LINES") {
+        return ""; // Ignoramos por completo los enters acumulados en el código LaTeX final
+    }
 
     if (symbol == "IMAGE") {
         // Estructura de hijos según la regla aplicada:

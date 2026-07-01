@@ -2,15 +2,22 @@
 This is a **bold text** example.
 *Italics text* goes here.
 Este es un parrafo normal.
-![Logotipo](logo.png)
+![Logotipo](logo.jpg)
 BLA BLA BLA.
 *La duda es uno de los nombres de la inteligencia*
 **La duda es uno de los nombres de la inteligencia**
 **La duda es uno de los nombres de la inteligencia*
 **tinky winky dipsy lala po**
 de *errores* a **horrores**
+
+
 #EL LLANTO ES EL ESPOSO DE LA LLANTA
 **LA NEGRITA *LA NEGRITALICA * LA NEGRITA**
+
+hola
+![Logotipo](naranjita.jpg)
+adios
+
 #En Naranja
 Como este rima compleja
 en naranja, por extraño

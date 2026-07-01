@@ -1,0 +1,3 @@
+g++ main.cpp Grammar.cpp LR1Parser.cpp Scanner.cpp  -o test
+
+python run.py

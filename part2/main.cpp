@@ -16,36 +16,35 @@ int main() {
             "BLOCK -> HEADING",
             "BLOCK -> PARAGRAPH",
             "BLOCK -> IMAGE",
+            "BLOCK -> BLANK_LINES",
 
-            // Bloques principales de contenido
             "HEADING -> HASH TEXT NEWLINE",
             "PARAGRAPH -> TEXT NEWLINE",
 
-            // TEXT es una lista de elementos a nivel de párrafo
+            "BLANK_LINES -> BLANK_LINES NEWLINE",
+            "BLANK_LINES -> NEWLINE",
+            "BLANK_LINES -> e",
+
             "TEXT -> TEXT ELEMENT",
             "TEXT -> ELEMENT",
 
-            // Elementos que componen el texto libre
             "ELEMENT -> BOLD",
             "ELEMENT -> ITALICS",
             "ELEMENT -> PLAIN_TEXT",
 
             "BOLD -> DOUBLE_AST INNER_TEXT DOUBLE_AST",
-            "ITALICS -> ASTERISK INNER_TEXT_ITALICS ASTERISK", // <-- Nueva estructura interna para itálicas
+            "ITALICS -> ASTERISK INNER_TEXT_ITALICS ASTERISK",
 
-            // INNER_TEXT es el contenido dentro de un bloque BOLD (puede contener itálicas)
             "INNER_TEXT -> INNER_TEXT INNER_ELEMENT",
             "INNER_TEXT -> INNER_ELEMENT",
 
-            "INNER_ELEMENT -> ITALICS",      // <-- Ahora permitimos itálicas dentro de negritas
+            "INNER_ELEMENT -> ITALICS",
             "INNER_ELEMENT -> PLAIN_TEXT",
 
-            // INNER_TEXT_ITALICS es el contenido dentro de un bloque ITALICS
-            // Esto evita que una itálica contenga otra itálica directamente (bucle infinito / ambigüedad)
             "INNER_TEXT_ITALICS -> INNER_TEXT_ITALICS INNER_ELEMENT_ITALICS",
             "INNER_TEXT_ITALICS -> INNER_ELEMENT_ITALICS",
 
-            "INNER_ELEMENT_ITALICS -> BOLD", // Permite una negrita dentro de una itálica (*ita**bold**ita*)
+            "INNER_ELEMENT_ITALICS -> BOLD",
             "INNER_ELEMENT_ITALICS -> PLAIN_TEXT",
 
             "IMAGE -> IMG_START TEXT R_BRACKET L_PAREN PLAIN_TEXT R_PAREN NEWLINE"

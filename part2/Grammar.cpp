@@ -25,7 +25,7 @@ Grammar::Grammar(const vector<string>& grammarLines, string emptySym) {
     loadFromLines(grammarLines);
     extractTerminals();
     extractFirsts();
-    extractFollows(); // Tu función de follow implementada antes
+    extractFollows();
 }
 
 
@@ -87,14 +87,14 @@ void Grammar::loadFromLines(const vector<string>& lines) {
     for (string line : lines) {
         if (line.empty()) continue;
 
-        
+
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
         if (line.empty()) continue;
 
         size_t arrow = line.find("->");
-        if (arrow == string::npos) continue; 
+        if (arrow == string::npos) continue;
 
         string head  = line.substr(0, arrow);
         string right = line.substr(arrow + 2);
@@ -272,12 +272,12 @@ const map<string, set<string>>& Grammar::getFollows() const {
 
 
 void Grammar::extractFollows() {
-    
+
     for (const string& nt : nonTerminals) {
         follows[nt] = set<string>();
     }
 
-    
+
     if (!startSymbol.empty()) {
         follows[startSymbol].insert("$");
     }
@@ -286,32 +286,32 @@ void Grammar::extractFollows() {
     while (changed) {
         changed = false;
 
-        
+
         for (const auto& production : productions) {
             const string& head = production.first;
             const vector<string>& body = production.second;
 
-            
+
             for (size_t i = 0; i < body.size(); ++i) {
                 const string& currentSymbol = body[i];
 
-                
+
                 if (isNonTerminal(currentSymbol)) {
                     size_t beforeSize = follows[currentSymbol].size();
 
-                    
+
                     bool deriveEpsilon = true;
                     for (size_t j = i + 1; j < body.size(); ++j) {
                         const string& nextSymbol = body[j];
                         bool hasEpsilon = false;
 
-                        
+
                         if (isTerminal(nextSymbol)) {
                             follows[currentSymbol].insert(nextSymbol);
                             deriveEpsilon = false;
                             break;
                         }
-                        
+
                         else if (isNonTerminal(nextSymbol)) {
                             for (const string& f : firsts[nextSymbol]) {
                                 if (f == emptySymbol) {
@@ -329,7 +329,7 @@ void Grammar::extractFollows() {
                         }
                     }
 
-                    
+
                     if (deriveEpsilon) {
                         for (const string& f : follows[head]) {
                             follows[currentSymbol].insert(f);
