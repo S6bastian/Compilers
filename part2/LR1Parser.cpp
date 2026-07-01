@@ -1126,16 +1126,31 @@ string LR1Parser::translateNode(TreeNode* node) {
 
     if (symbol == "BOLD") {
         if (node->children.size() == 3) {
-
-            return "\\textbf{" + node->children[1]->symbol + "}";
+            // children[1] ahora es INNER_TEXT
+            return "\\textbf{" + translateNode(node->children[1]) + "}";
         }
     }
 
-
     if (symbol == "ITALICS") {
         if (node->children.size() == 3) {
-            return "\\textit{" + node->children[1]->symbol + "}";
+            // children[1] ahora es INNER_TEXT
+            return "\\textit{" + translateNode(node->children[1]) + "}";
         }
+    }
+
+    if (symbol == "INNER_TEXT" || symbol == "INNER_TEXT_ITALICS") {
+        string result = "";
+        for (TreeNode* child : node->children) {
+            result += translateNode(child);
+        }
+        return result;
+    }
+
+    if (symbol == "INNER_ELEMENT" || symbol == "INNER_ELEMENT_ITALICS") {
+        if (!node->children.empty()) {
+            return translateNode(node->children[0]);
+        }
+        return "";
     }
 
 

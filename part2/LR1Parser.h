@@ -101,78 +101,7 @@ private:
 class LatexGenerator {
 private:
 
-    std::string translateNode(TreeNode* node) {
-        if (!node) return "";
-
-        if (node->children.empty()) {
-            return "";
-        }
-
-        
-        std::string symbol = node->symbol;
-
-        if (symbol == "DOCUMENT") {
-            std::string body = "";
-            for (TreeNode* child : node->children) {
-                body += translateNode(child);
-            }
-            
-            std::string result = "\\documentclass{article}\n";
-            result += "\\usepackage[utf8]{inputenc}\n";
-            result += "\\begin{document}\n\n";
-            result += body;
-            result += "\\end{document}\n";
-            return result;
-        }
-
-        if (symbol == "HEADING") {
-            
-            if (node->children.size() >= 2) {
-                return "\\section{" + translateNode(node->children[1]) + "}\n\n";
-            }
-        }
-
-        if (symbol == "PARAGRAPH") {
-            
-            if (!node->children.empty()) {
-                return translateNode(node->children[0]) + "\n\n";
-            }
-        }
-
-        if (symbol == "BOLD") {
-            
-            
-            if (node->children.size() == 3) {
-                return "\\textbf{" + node->children[1]->symbol + "}";
-            }
-        }
-
-        if (symbol == "ITALICS") {
-            
-            if (node->children.size() == 3) {
-                return "\\textit{" + node->children[1]->symbol + "}";
-            }
-        }
-
-        if (symbol == "ELEMENT") {
-            
-            if (!node->children.empty()) {
-                TreeNode* child = node->children[0];
-                
-                if (child->symbol != "BOLD" && child->symbol != "ITALICS" && child->children.empty()) {
-                    return child->symbol; 
-                }
-                return translateNode(child);
-            }
-        }
-
-        
-        std::string concat = "";
-        for (TreeNode* child : node->children) {
-            concat += translateNode(child);
-        }
-        return concat;
-    }
+    std::string translateNode(TreeNode* node);
 
 public:
     std::string generate(TreeNode* root) {
