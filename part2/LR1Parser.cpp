@@ -908,52 +908,45 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
 
 
         if (actionTable[topState].find(terminal) == actionTable[topState].end()) {
-
             cout << "[Modo Panico] Error sintactico en linea " << currentToken.line
                  << ", columna " << currentToken.column
                  << ". Token inesperado: '" << currentToken.lexeme << "'\n";
 
-
             if (terminal == "$") return false;
 
+            // 1. Descartar el token conflictivo actual para evitar bucles infinitos
+            cout << "   Omitiendo: '" << tokens[tokenIndex].lexeme << "'\n";
+            tokenIndex++;
 
-            cout << "-> Descartando tokens conflictivos hasta encontrar un salto de linea (NEWLINE)..." << endl;
+            // Descartar hasta encontrar el token de sincronización (NEWLINE o Fin de archivo)
             while (tokenIndex < tokens.size() && tokens[tokenIndex].toGrammarString() != "NEWLINE") {
                 cout << "   Omitiendo: '" << tokens[tokenIndex].lexeme << "'\n";
                 tokenIndex++;
             }
 
-
             if (tokenIndex >= tokens.size()) {
-                cout << "-> No se encontro un punto de sincronizacion. Abortando.\n";
+                cout << "-> No se encontro un punto de sincronizacion (NEWLINE). Abortando.\n";
                 return false;
             }
 
-            // Consumir el NEWLINE
+            // Avanzamos para consumir el NEWLINE y usarlo como punto de reinicio
+            tokenIndex++;
 
+            // 2. Buscar un estado ancla en la pila que acepte sincronización
+            bool recovered = false;
+            int targetState = -1;
+            string syncToken = "BLOCK"; // Asegúrate de que tu gramática use este No Terminal para agrupar bloques
 
-            cout << "-> Buscando un estado seguro en la pila para reanudar el analisis..." << endl;
             while (!stateStack.empty()) {
                 int state = stateStack.back();
 
-
-                if (gotoTable[state].find("BLOCK") != gotoTable[state].end()) {
-                    int nextState = gotoTable[state]["BLOCK"];
-
-
-                    TreeNode* errorBlock = new TreeNode("BLOCK");
-                    TreeNode* errorNode = new TreeNode("% [Error de Sintaxis Omitido en esta linea]");
-                    errorBlock->children.push_back(errorNode);
-
-
-                    stateStack.push_back(nextState);
-                    treeStack.push_back(errorBlock);
-
-                    cout << "-> ¡Sincronizacion exitosa! Reanudando analisis en el estado " << nextState << "\n\n";
+                if (gotoTable[state].find(syncToken) != gotoTable[state].end()) {
+                    targetState = gotoTable[state][syncToken];
+                    recovered = true;
                     break;
                 }
 
-
+                // Si no sirve, desapilamos
                 if (stateStack.size() > 1) {
                     stateStack.pop_back();
                     if (!treeStack.empty()) {
@@ -961,13 +954,24 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
                         treeStack.pop_back();
                     }
                 } else {
-
-                    cout << "-> Error crítico: Imposible recuperarse en el estado raíz.\n";
-                    return false;
+                    break; // Llegamos al fondo de la pila
                 }
             }
 
+            if (!recovered) {
+                cout << "-> Error crítico: Imposible recuperarse en los estados actuales de la pila.\n";
+                return false;
+            }
 
+            // 3. Insertar nodo de error en el árbol y actualizar el estado
+            TreeNode* errorBlock = new TreeNode(syncToken);
+            TreeNode* errorNode = new TreeNode("% [Error de Sintaxis Omitido en esta linea]");
+            errorBlock->children.push_back(errorNode);
+
+            stateStack.push_back(targetState);
+            treeStack.push_back(errorBlock);
+
+            cout << "-> ¡Sincronizacion exitosa! Reanudando analisis en el estado " << targetState << "\n\n";
             continue;
         }
 
@@ -1002,15 +1006,14 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
             }
 
 
-            vector<TreeNode*> childrenTemp;
-            for (size_t i = 0; i < numSymbolsToPop; ++i) {
+            vector<TreeNode*> childrenTemp(numSymbolsToPop);
+            for (int i = (int)numSymbolsToPop - 1; i >= 0; --i) {
                 stateStack.pop_back();
-                childrenTemp.push_back(treeStack.back());
+                childrenTemp[i] = treeStack.back(); // Asigna directamente de derecha a izquierda
                 treeStack.pop_back();
             }
-
-            for (auto it = childrenTemp.rbegin(); it != childrenTemp.rend(); ++it) {
-                parentNode->children.push_back(*it);
+            for (TreeNode* child : childrenTemp) {
+                parentNode->children.push_back(child);
             }
 
             //  GOTO
@@ -1048,7 +1051,7 @@ string LR1Parser::generateLatex() {
 
     result += body;
 
-    result += "\\end{document}\n";
+    result += "\n\\end{document}\n";
 
     return result;
 }

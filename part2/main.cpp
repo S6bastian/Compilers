@@ -8,7 +8,7 @@
 using namespace std;
 
 int main() {
-    
+
     vector<string> rawGrammar = {
         "DOCUMENT -> BLOCKLIST",
         "BLOCKLIST -> BLOCKLIST BLOCK",
@@ -44,15 +44,19 @@ int main() {
     vector<Token> listaTokens;
     Token t = scanner.gettoken();
 
+
+    cout << "INFO\tSCAN - Start scanning...\n";
     while (t.type != TokenType::END_OF_FILE && t.type != TokenType::TOKEN_ERROR) {
+        cout << "DEBUG\tSCAN - " << t.toGrammarString() << " at ("
+             << t.line << ":" << t.column << ")\n";
         listaTokens.push_back(t);
         t = scanner.gettoken();
     }
 
 
     if (t.type == TokenType::TOKEN_ERROR) {
-        cout << "[Error Lexico] Se detecto un token invalido en la linea "
-             << t.line << ", columna " << t.column << "." << endl;
+        cout << "DEBUG\tSCAN - TOKEN ERROR at ("
+             << t.line << ":" << t.column << ")\n";
         return 1;
     }
 

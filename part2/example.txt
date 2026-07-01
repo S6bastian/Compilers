@@ -4,3 +4,6 @@ This is a **bold text** example.
 Este es un parrafo normal.
 ![Logotipo](logo.png)
 BLA BLA BLA.
+*La duda es uno de los nombres de la inteligencia*
+**La duda es uno de los nombres de la inteligencia**
+**La duda es uno de los nombres de la inteligencia*
