@@ -1,9 +1,15 @@
+import json
 import os
 import subprocess
+import urllib.error
+import urllib.request
 
 EJECUTABLE = "./transpiler"
 ARCHIVO_TEX = "output.tex"
+ARCHIVO_PDF = "output.pdf"
 FUENTES_CPP = ["main.cpp", "Scanner.cpp", "LR1Parser.cpp", "Grammar.cpp"]
+
+URL_YTOTECH = "https://latex.ytotech.com/builds/sync"
 
 
 def main():
@@ -28,30 +34,49 @@ def main():
         print(res_transpiler.stderr)
         return
 
-    # 3. Validar existencia de output.tex y compilarlo con pdflatex
+    # 3. Validar existencia de output.tex
     if not os.path.exists(ARCHIVO_TEX):
         print(f"Error: No se encontro el archivo {ARCHIVO_TEX}")
         return
 
-    # Ejecuta pdflatex de forma limpia sobre el archivo puro de C++
-    comando_latex = f"pdflatex -interaction=nonstopmode {ARCHIVO_TEX}"
-    res_latex = subprocess.run(
-        comando_latex, shell=True, capture_output=True, text=True
-    )
+    # 4. Enviar el contenido a YtoTech y recibir el PDF
+    print(f"Compilando {ARCHIVO_TEX} de forma remota a traves de YtoTech...")
+    try:
+        with open(ARCHIVO_TEX, "r", encoding="utf-8") as f:
+            contenido_latex = f.read()
 
-    if res_latex.returncode != 0:
-        print("Error en la compilacion de LaTeX:")
-        print(res_latex.stderr)
-        return
+        # Estructura JSON requerida por la API de YtoTech
+        payload = {
+            "compiler": "pdflatex",
+            "resources": [{"main": True, "content": contenido_latex}],
+        }
 
-    # 4. Limpieza de archivos auxiliares (.aux, .log, etc.)
-    nombre_base = os.path.splitext(ARCHIVO_TEX)[0]
-    for ext in [".aux", ".log", ".toc", ".out"]:
-        archivo_basura = nombre_base + ext
-        if os.path.exists(archivo_basura):
-            os.remove(archivo_basura)
+        # Preparar la petición HTTP POST
+        datos_json = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            URL_YTOTECH,
+            data=datos_json,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
 
-    print("Proceso finalizado. PDF generado correctamente.")
+        # Enviar y guardar la respuesta (el PDF binario)
+        with urllib.request.urlopen(req) as response:
+            with open(ARCHIVO_PDF, "wb") as f_pdf:
+                f_pdf.write(response.read())
+
+        print(f"Proceso finalizado. PDF generado exitosamente: {ARCHIVO_PDF}")
+
+    except urllib.error.HTTPError as e:
+        print(f"Error en el servidor de LaTeX (HTTP {e.code}):")
+        # Intentar leer el error detallado del JSON de YtoTech si está disponible
+        try:
+            error_info = json.loads(e.read().decode("utf-8"))
+            print(json.dumps(error_info, indent=2))
+        except Exception:
+            print(e.reason)
+    except Exception as e:
+        print(f"Ocurrio un error inesperado al conectar con el servidor: {e}")
 
 
 if __name__ == "__main__":

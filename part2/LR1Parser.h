@@ -100,20 +100,15 @@ private:
 
 class LatexGenerator {
 private:
-    // Método recursivo para recorrer el árbol y acumular la traducción
+
     std::string translateNode(TreeNode* node) {
         if (!node) return "";
 
-        // CASO 1: Es un nodo hoja (Terminal)
         if (node->children.empty()) {
-            // Nota: El parser solo guarda el nombre del token (ej: "PLAIN_TEXT" o "HASH").
-            // Si necesitas el LEXEMA exacto guardado durante el escaneo, usualmente se pasa
-            // al árbol en el proceso de reducción. Asumiendo que tu TreeNode actual guarda el
-            // símbolo o token evaluado, procesamos según las reglas:
             return "";
         }
 
-        // CASO 2: Nodo No Terminal. Evaluamos las reglas de producción.
+        
         std::string symbol = node->symbol;
 
         if (symbol == "DOCUMENT") {
@@ -121,7 +116,7 @@ private:
             for (TreeNode* child : node->children) {
                 body += translateNode(child);
             }
-            // Envolvemos el cuerpo en el template de LaTeX
+            
             std::string result = "\\documentclass{article}\n";
             result += "\\usepackage[utf8]{inputenc}\n";
             result += "\\begin{document}\n\n";
@@ -131,48 +126,47 @@ private:
         }
 
         if (symbol == "HEADING") {
-            // HEADING -> HASH TEXT NEWLINE
-            // El texto real estará en el segundo hijo (índice 1)
+            
             if (node->children.size() >= 2) {
                 return "\\section{" + translateNode(node->children[1]) + "}\n\n";
             }
         }
 
         if (symbol == "PARAGRAPH") {
-            // PARAGRAPH -> TEXT NEWLINE
+            
             if (!node->children.empty()) {
                 return translateNode(node->children[0]) + "\n\n";
             }
         }
 
         if (symbol == "BOLD") {
-            // BOLD -> DOUBLE_AST PLAIN_TEXT DOUBLE_AST
-            // Extraemos el contenido de PLAIN_TEXT (hijo del medio)
+            
+            
             if (node->children.size() == 3) {
                 return "\\textbf{" + node->children[1]->symbol + "}";
             }
         }
 
         if (symbol == "ITALICS") {
-            // ITALICS -> ASTERISK PLAIN_TEXT ASTERISK
+            
             if (node->children.size() == 3) {
                 return "\\textit{" + node->children[1]->symbol + "}";
             }
         }
 
         if (symbol == "ELEMENT") {
-            // ELEMENT puede derivar en BOLD, ITALICS o PLAIN_TEXT plano
+            
             if (!node->children.empty()) {
                 TreeNode* child = node->children[0];
-                // Si es texto plano directo (hoja) y no una estructura anidada
+                
                 if (child->symbol != "BOLD" && child->symbol != "ITALICS" && child->children.empty()) {
-                    return child->symbol; // Aquí va el lexema original
+                    return child->symbol; 
                 }
                 return translateNode(child);
             }
         }
 
-        // Por defecto, concatenar el resultado de todos los hijos (ej. BLOCKLIST, TEXT)
+        
         std::string concat = "";
         for (TreeNode* child : node->children) {
             concat += translateNode(child);

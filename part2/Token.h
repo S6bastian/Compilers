@@ -2,7 +2,7 @@
 
 #include <string>
 
-// Categorías de tokens requeridas por nuestra gramática
+
 enum class TokenType {
     HASH,           // #
     DOUBLE_AST,     // **
@@ -17,28 +17,15 @@ enum class TokenType {
     R_PAREN       // )
 };
 
-// Estructura del Token con tipo, lexema y posicionamiento (línea:columna)
+
 struct Token {
     TokenType type;
     std::string lexeme;
     int line;
     int column;
 
-    // Función auxiliar opcional para imprimir el token de forma amigable (Útil para el Debug)
-    std::string toString() const {
-        switch (type) {
-            case TokenType::HASH:        return "HASH";
-            case TokenType::DOUBLE_AST:  return "DOUBLE_AST";
-            case TokenType::ASTERISK:    return "ASTERISK";
-            case TokenType::NEWLINE:     return "NEWLINE";
-            case TokenType::PLAIN_TEXT:  return "PLAIN_TEXT";
-            case TokenType::END_OF_FILE: return "EOF";
-            case TokenType::TOKEN_ERROR: return "ERROR";
-            default:                     return "UNKNOWN";
-        }
-    }
 
-    // Esta función devuelve el string EXACTO que espera el archivo grammar.txt
+
     std::string toGrammarString() const {
         switch (type) {
             case TokenType::HASH:        return "HASH";
@@ -47,7 +34,6 @@ struct Token {
             case TokenType::NEWLINE:     return "NEWLINE";
             case TokenType::PLAIN_TEXT:  return "PLAIN_TEXT";
             case TokenType::END_OF_FILE: return "$";
-            // === NUEVOS MAPEOS ===
             case TokenType::IMG_START:   return "IMG_START";
             case TokenType::R_BRACKET:   return "R_BRACKET";
             case TokenType::L_PAREN:     return "L_PAREN";

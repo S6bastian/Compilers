@@ -129,7 +129,7 @@ void LR1Parser::printStates() const {
             cout << " }\n";
         }
 
-        // Imprimir transiciones
+
         if (transitions.find(i) != transitions.end() && !transitions.at(i).empty()) {
             cout << "  Transitions:\n";
             for (const auto& [symbol, target] : transitions.at(i)) {
@@ -285,7 +285,8 @@ void LR1Parser::printTable() const {
     for (size_t i = 0; i < productions.size(); ++i) {
         cout << i << ": " << productions[i].first << " -> ";
         if (productions[i].second.empty()) {
-            cout << grammar->getEmptySymbol();
+            cout << // Retroceder en la pila
+                grammar->getEmptySymbol();
         } else {
             for (const string& s : productions[i].second) {
                 cout << s << " ";
@@ -611,13 +612,14 @@ vector<string> LR1Parser::tokenize(const string& input) {
     return tokens;
 }
 
+
+
 bool LR1Parser::parse(const string& input) {
     traceTable.clear();
     if (parseTreeRoot) {
         deleteTree(parseTreeRoot);
         parseTreeRoot = nullptr;
     }
-
 
 
     vector<string> tokens = tokenize(input);
@@ -687,14 +689,12 @@ bool LR1Parser::parse(const string& input) {
 
                 cout << "  [PANIC MODE] Buscando estado ancla en la pila desapilando...\n";
 
-                // 1. BUSCAR ESTADO ANCLA (Retroceder en la pila)
-                // Evaluamos desde el tope de la pila hacia abajo qué No Terminal podemos usar
+
+
                 while (!stateStack.empty()) {
                     int topState = stateStack.back();
 
-                    // Intentamos sincronizar con los No Terminales de menor a mayor jerarquía
-                    // para no destruir árboles de derivación superiores si el error es local.
-                    // En tu gramática: F (factores), T (términos), E (expresiones)
+
                     for (const string& nt : {"E"}) { // "F", "T", "E"
                         if (grammar->isNonTerminal(nt) &&
                             gotoTable.find(topState) != gotoTable.end() &&
@@ -714,7 +714,7 @@ bool LR1Parser::parse(const string& input) {
                         break;
                     }
 
-                    // Si el estado actual de la pila no tiene GOTO para nuestros No Terminales, lo sacamos
+
                     stateStack.pop_back();
                     if (!nodeStack.empty()) {
                         delete nodeStack.back();
@@ -727,23 +727,21 @@ bool LR1Parser::parse(const string& input) {
                     return false;
                 }
 
-                // 2. DESCARTAR TOKENS EN LA ENTRADA (Sincronización con el FOLLOW del No Terminal)
+
                 cout << "  [PANIC MODE] Descartando tokens usando el FOLLOW(" << syncNonTerminal << ")...\n";
 
-                // Obtenemos el conjunto FOLLOW que acabamos de implementar en la clase Grammar
+
                 const auto& followSets = grammar->getFollows();
                 set<string> validFollows;
                 if (followSets.find(syncNonTerminal) != followSets.end()) {
                     validFollows = followSets.at(syncNonTerminal);
                 }
 
-                // El símbolo '$' siempre es un punto de parada seguro para evitar desbordar la entrada
                 validFollows.insert("$");
 
                 while (inputPos < tokens.size()) {
                     currentToken = tokens[inputPos];
 
-                    // Si el token actual está en el FOLLOW del No Terminal elegido, nos detenemos aquí.
                     if (validFollows.count(currentToken)) {
                         cout << "  [PANIC MODE] Símbolo de sincronización encontrado: '" << currentToken << "'\n";
                         break;
@@ -757,8 +755,8 @@ bool LR1Parser::parse(const string& input) {
                     inputPos++;
                 }
 
-                // 3. AISLAR EL ERROR EN EL ÁRBOL Y REANUDAR
-                // Insertamos un nodo placeholder en el árbol sintáctico para que la estructura no se rompa
+
+
                 TreeNode* errorNode = new TreeNode(syncNonTerminal + " (Recuperado)");
                 nodeStack.push_back(errorNode);
                 stateStack.push_back(targetState);
@@ -896,85 +894,80 @@ void LR1Parser::deleteTree(TreeNode* node) {
 
 
 bool LR1Parser::parse(const vector<Token>& tokens) {
-    // Limpieza e inicialización clásica de tus pilas
+
     vector<int> stateStack = {0};
-    vector<TreeNode*> treeStack; // Asegúrate de tener una pila de nodos para armar el árbol
+    vector<TreeNode*> treeStack;
 
     size_t tokenIndex = 0;
 
     while (true) {
         int topState = stateStack.back();
 
-        // Obtener el token actual del vector. Si llegamos al final, usamos el símbolo "$" (EOF)
         Token currentToken = (tokenIndex < tokens.size()) ? tokens[tokenIndex] : Token{TokenType::END_OF_FILE, "$", 0, 0};
         string terminal = currentToken.toGrammarString();
 
-        // Verificar la acción en tu tabla
+
         if (actionTable[topState].find(terminal) == actionTable[topState].end()) {
-            // 1. REPORTAR EL ERROR SINTÁCTICO
+
             cout << "[Modo Panico] Error sintactico en linea " << currentToken.line
                  << ", columna " << currentToken.column
                  << ". Token inesperado: '" << currentToken.lexeme << "'\n";
 
-            // Si ya llegamos al fin del archivo, no hay nada que recuperar
+
             if (terminal == "$") return false;
 
-            // 2. AVANZAR EL SCANNER HASTA UN TOKEN DE SINCRONIZACIÓN (Hacia adelante)
-            // Buscaremos el siguiente NEWLINE para intentar procesar la siguiente línea/bloque
+
             cout << "-> Descartando tokens conflictivos hasta encontrar un salto de linea (NEWLINE)..." << endl;
             while (tokenIndex < tokens.size() && tokens[tokenIndex].toGrammarString() != "NEWLINE") {
                 cout << "   Omitiendo: '" << tokens[tokenIndex].lexeme << "'\n";
                 tokenIndex++;
             }
 
-            // Si nos comimos todos los tokens y llegamos al final del archivo
+
             if (tokenIndex >= tokens.size()) {
                 cout << "-> No se encontro un punto de sincronizacion. Abortando.\n";
                 return false;
             }
 
-            // Consumimos también el NEWLINE para posicionarnos al inicio de la siguiente línea limpia
-            tokenIndex++;
+            // Consumir el NEWLINE
 
-            // 3. LIMPIAR PILAS HASTA ENCONTRAR UN ESTADO COMPATIBLE (Hacia atrás)
-            // Queremos regresar a un estado donde sea seguro insertar un bloque (BLOCKLIST o DOCUMENT)
+
             cout << "-> Buscando un estado seguro en la pila para reanudar el analisis..." << endl;
             while (!stateStack.empty()) {
                 int state = stateStack.back();
 
-                // Comprobamos si desde este estado podemos saltar al manejo de un bloque ("BLOCK")
+
                 if (gotoTable[state].find("BLOCK") != gotoTable[state].end()) {
                     int nextState = gotoTable[state]["BLOCK"];
 
-                    // Creamos un nodo ficticio en el árbol para representar el bloque que tenía errores
-                    // Así el LatexGenerator no se rompe al recorrerlo, simplemente ignorará el contenido vacío
+
                     TreeNode* errorBlock = new TreeNode("BLOCK");
                     TreeNode* errorNode = new TreeNode("% [Error de Sintaxis Omitido en esta linea]");
                     errorBlock->children.push_back(errorNode);
 
-                    // Forzamos la transición sintáctica en la pila
+
                     stateStack.push_back(nextState);
                     treeStack.push_back(errorBlock);
 
                     cout << "-> ¡Sincronizacion exitosa! Reanudando analisis en el estado " << nextState << "\n\n";
-                    break; // Salimos del modo pánico y el bucle principal 'while(true)' continuará normalmente
+                    break;
                 }
 
-                // Si el estado de la pila no sabe qué hacer con un "BLOCK", lo desapilamos
+
                 if (stateStack.size() > 1) {
                     stateStack.pop_back();
                     if (!treeStack.empty()) {
-                        delete treeStack.back(); // Limpieza de memoria para no dejar colgados nodos huérfanos
+                        delete treeStack.back();
                         treeStack.pop_back();
                     }
                 } else {
-                    // Si llegamos al estado inicial (0) y ni ahí se puede sincronizar
+
                     cout << "-> Error crítico: Imposible recuperarse en el estado raíz.\n";
                     return false;
                 }
             }
 
-            // Continuamos el bucle while(true) principal
+
             continue;
         }
 
@@ -984,17 +977,16 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
             int nextState = stoi(action.substr(1));
             stateStack.push_back(nextState);
 
-            // ¡AQUÍ ESTÁ EL TRUCO!
-            // Si el terminal es PLAIN_TEXT, guardamos su LEXEMA REAL en el nodo del árbol
+
             TreeNode* terminalNode = nullptr;
             if (terminal == "PLAIN_TEXT") {
-                terminalNode = new TreeNode(currentToken.lexeme); // Guarda "Hello World", no "PLAIN_TEXT"
+                terminalNode = new TreeNode(currentToken.lexeme);
             } else {
-                terminalNode = new TreeNode(terminal); // Guarda "HASH", "DOUBLE_AST", etc.
+                terminalNode = new TreeNode(terminal);
             }
             treeStack.push_back(terminalNode);
 
-            tokenIndex++; // Avanzamos al siguiente token real
+            tokenIndex++;
         }
         else if (action[0] == 'r') { // REDUCE
             int prodIndex = stoi(action.substr(1));
@@ -1003,35 +995,35 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
 
             TreeNode* parentNode = new TreeNode(head);
 
-            // Desapilamos los estados y recolectamos los hijos del árbol
+
             size_t numSymbolsToPop = body.size();
             if (body.size() == 1 && body[0] == grammar->getEmptySymbol()) {
                 numSymbolsToPop = 0; // Épsilon no desapila
             }
 
-            // Los hijos salen en orden inverso de la pila
+
             vector<TreeNode*> childrenTemp;
             for (size_t i = 0; i < numSymbolsToPop; ++i) {
                 stateStack.pop_back();
                 childrenTemp.push_back(treeStack.back());
                 treeStack.pop_back();
             }
-            // Los invertimos para que queden en el orden correcto de izquierda a derecha
+
             for (auto it = childrenTemp.rbegin(); it != childrenTemp.rend(); ++it) {
                 parentNode->children.push_back(*it);
             }
 
-            // Hacemos el GOTO
+            //  GOTO
             int topStateAfterPop = stateStack.back();
             int nextState = gotoTable[topStateAfterPop][head];
             stateStack.push_back(nextState);
 
-            // Colocamos el nuevo nodo no terminal en la pila del árbol
+
             treeStack.push_back(parentNode);
         }
         else if (action == "acc") { // ACCEPT
             if (!treeStack.empty()) {
-                parseTreeRoot = treeStack.back(); // La raíz final del documento
+                parseTreeRoot = treeStack.back();
             }
             return true;
         }
@@ -1039,16 +1031,16 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
     return false;
 }
 
-// Método público: Verifica que el árbol exista e inicia la recursión desde la raíz
+
 string LR1Parser::generateLatex() {
     if (!parseTreeRoot) {
         return "";
     }
 
-    // 1. Generamos todo el cuerpo recorriendo el árbol AST
+
     string body = translateNode(parseTreeRoot);
 
-    // 2. Construimos la estructura completa con las cabeceras requeridas
+    //
     string result = "\\documentclass{article}\n";
     result += "\\usepackage[utf8]{inputenc}\n";
     result += "\\usepackage{graphicx}\n";
@@ -1061,7 +1053,7 @@ string LR1Parser::generateLatex() {
     return result;
 }
 
-// Método privado: Analiza el símbolo de cada TreeNode y genera su código equivalente
+
 string LR1Parser::translateNode(TreeNode* node) {
     if (!node) return "";
 
@@ -1075,37 +1067,37 @@ string LR1Parser::translateNode(TreeNode* node) {
         return "";
     }
 
-    // 2. Títulos / Encabezados: HEADING -> HASH TEXT NEWLINE
+
     if (symbol == "HEADING") {
         if (node->children.size() >= 2) {
-            // El hijo en el índice 1 es el nodo No Terminal "TEXT"
+
             return "\\section{" + translateNode(node->children[1]) + "}\n\n";
         }
     }
 
-    // 3. Párrafos tradicionales: PARAGRAPH -> TEXT NEWLINE
+
     if (symbol == "PARAGRAPH") {
         if (!node->children.empty()) {
             return translateNode(node->children[0]) + "\n\n";
         }
     }
 
-    // 4. Negritas: BOLD -> DOUBLE_AST PLAIN_TEXT DOUBLE_AST
+
     if (symbol == "BOLD") {
         if (node->children.size() == 3) {
-            // Gracias al cambio en el Shift, node->children[1]->symbol contiene el texto real
+
             return "\\textbf{" + node->children[1]->symbol + "}";
         }
     }
 
-    // 5. Cursivas: ITALICS -> ASTERISK PLAIN_TEXT ASTERISK
+
     if (symbol == "ITALICS") {
         if (node->children.size() == 3) {
             return "\\textit{" + node->children[1]->symbol + "}";
         }
     }
 
-    // === TRADUCCIÓN DE IMÁGENES ===
+
     if (symbol == "IMAGE") {
         // Estructura de hijos según la regla aplicada:
         // children[0] = IMG_START ("![")
@@ -1117,13 +1109,13 @@ string LR1Parser::translateNode(TreeNode* node) {
         // children[6] = NEWLINE
 
         if (node->children.size() >= 6) {
-            // El texto alternativo puede contener negritas/cursivas, así que lo procesamos recursivamente
+
             string altText = translateNode(node->children[1]);
 
-            // La URL es texto plano directo (un nodo hoja sin hijos), extraemos su símbolo/lexema original
+
             string url = node->children[4]->symbol;
 
-            // Construimos el bloque flotante tradicional de LaTeX para imágenes
+
             string latexImg = "\\begin{figure}[h]\n";
             latexImg += "  \\centering\n";
             latexImg += "  \\includegraphics[width=0.8\\textwidth]{" + url + "}\n";
@@ -1134,7 +1126,7 @@ string LR1Parser::translateNode(TreeNode* node) {
         }
     }
 
-    // 6. Hojas Terminales
+
     if (node->children.empty()) {
         if (symbol == "HASH" || symbol == "DOUBLE_AST" || symbol == "ASTERISK" ||
             symbol == "NEWLINE" || symbol == "$" ||
@@ -1144,7 +1136,7 @@ string LR1Parser::translateNode(TreeNode* node) {
         return symbol;
     }
 
-    // Caso base por defecto: Concatenar el resultado de subestructuras (BLOCKLIST, TEXT, ELEMENT)
+
     string concat = "";
     for (TreeNode* child : node->children) {
         concat += translateNode(child);
