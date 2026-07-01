@@ -965,7 +965,7 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
 
             // 3. Insertar nodo de error en el árbol y actualizar el estado
             TreeNode* errorBlock = new TreeNode(syncToken);
-            TreeNode* errorNode = new TreeNode("% [Error de Sintaxis Omitido en esta linea]");
+            TreeNode* errorNode = new TreeNode("% [Error de Sintaxis Omitido en esta linea]\n");
             errorBlock->children.push_back(errorNode);
 
             stateStack.push_back(targetState);
