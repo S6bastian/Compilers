@@ -908,7 +908,7 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
 
 
         if (actionTable[topState].find(terminal) == actionTable[topState].end()) {
-            cout << "[Modo Panico] Error sintactico en linea " << currentToken.line
+            cout << "\n[Modo Panico] Error sintactico en linea " << currentToken.line
                  << ", columna " << currentToken.column
                  << ". Token inesperado: '" << currentToken.lexeme << "'\n";
 
@@ -918,7 +918,7 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
             cout << "   Omitiendo: '" << tokens[tokenIndex].lexeme << "'\n";
             tokenIndex++;
 
-            // Descartar hasta encontrar el token de sincronización (NEWLINE o Fin de archivo)
+            // Descartar hasta encontrar el token de sincronización física (NEWLINE)
             while (tokenIndex < tokens.size() && tokens[tokenIndex].toGrammarString() != "NEWLINE") {
                 cout << "   Omitiendo: '" << tokens[tokenIndex].lexeme << "'\n";
                 tokenIndex++;
@@ -932,46 +932,84 @@ bool LR1Parser::parse(const vector<Token>& tokens) {
             // Avanzamos para consumir el NEWLINE y usarlo como punto de reinicio
             tokenIndex++;
 
-            // 2. Buscar un estado ancla en la pila que acepte sincronización
+            // 2. Buscar un estado ancla en la pila usando DOBLE PASADA (Prioridad estricta)
             bool recovered = false;
             int targetState = -1;
-            string syncToken = "BLOCK"; // Asegúrate de que tu gramática use este No Terminal para agrupar bloques
+            string syncTokenChosen = "";
 
-            while (!stateStack.empty()) {
-                int state = stateStack.back();
+            // Guardamos copias temporales de las pilas para poder simular el desapilado local primero
+            auto stateStackCopy = stateStack;
+            auto treeStackCopy = treeStack;
 
-                if (gotoTable[state].find(syncToken) != gotoTable[state].end()) {
-                    targetState = gotoTable[state][syncToken];
+            // --- PASADA 1: Intentar recuperar localmente con "BLOCK" ---
+            while (!stateStackCopy.empty()) {
+                int state = stateStackCopy.back();
+                if (gotoTable[state].find("BLOCK") != gotoTable[state].end()) {
+                    targetState = gotoTable[state]["BLOCK"];
+                    syncTokenChosen = "BLOCK";
                     recovered = true;
+
+                    // Aplicamos los cambios reales a las pilas originales
+                    stateStack = stateStackCopy;
+                    treeStack = treeStackCopy;
                     break;
                 }
 
-                // Si no sirve, desapilamos
-                if (stateStack.size() > 1) {
-                    stateStack.pop_back();
-                    if (!treeStack.empty()) {
-                        delete treeStack.back();
-                        treeStack.pop_back();
-                    }
+                if (stateStackCopy.size() > 1) {
+                    stateStackCopy.pop_back();
+                    if (!treeStackCopy.empty()) treeStackCopy.pop_back();
                 } else {
-                    break; // Llegamos al fondo de la pila
+                    break;
+                }
+            }
+
+            // --- PASADA 2: Si falló BLOCK, intentar con el ancla global "DOCUMENT" ---
+            if (!recovered) {
+                stateStackCopy = stateStack; // Reiniciamos la copia con el estado actual de las pilas
+                treeStackCopy = treeStack;
+
+                while (!stateStackCopy.empty()) {
+                    int state = stateStackCopy.back();
+                    if (gotoTable[state].find("DOCUMENT") != gotoTable[state].end()) {
+                        targetState = gotoTable[state]["DOCUMENT"];
+                        syncTokenChosen = "DOCUMENT";
+                        recovered = true;
+
+                        // Aplicamos los cambios reales a las pilas originales (Liberando memoria de lo destruido)
+                        while (stateStack.size() > stateStackCopy.size()) {
+                            stateStack.pop_back();
+                            if (!treeStack.empty()) {
+                                delete treeStack.back();
+                                treeStack.pop_back();
+                            }
+                        }
+                        break;
+                    }
+
+                    if (stateStackCopy.size() > 1) {
+                        stateStackCopy.pop_back();
+                        if (!treeStackCopy.empty()) treeStackCopy.pop_back();
+                    } else {
+                        break;
+                    }
                 }
             }
 
             if (!recovered) {
-                cout << "-> Error crítico: Imposible recuperarse en los estados actuales de la pila.\n";
+                cout << "-> Error crítico: Imposible recuperarse usando BLOCK ni DOCUMENT.\n";
                 return false;
             }
 
-            // 3. Insertar nodo de error en el árbol y actualizar el estado
-            TreeNode* errorBlock = new TreeNode(syncToken);
+            // 3. Insertar el nodo de error usando el token con el que logramos sincronizar
+            TreeNode* errorBlock = new TreeNode(syncTokenChosen);
             TreeNode* errorNode = new TreeNode("% [Error de Sintaxis Omitido en esta linea]\n");
             errorBlock->children.push_back(errorNode);
 
             stateStack.push_back(targetState);
             treeStack.push_back(errorBlock);
 
-            cout << "-> ¡Sincronizacion exitosa! Reanudando analisis en el estado " << targetState << "\n\n";
+            cout << "-> ¡Sincronizacion exitosa! Recuperado mediante '" << syncTokenChosen
+                 << "' en el estado " << targetState << "\n\n";
             continue;
         }
 
